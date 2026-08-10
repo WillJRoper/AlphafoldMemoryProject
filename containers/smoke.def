@@ -1,0 +1,9 @@
+Bootstrap: docker
+From: nvidia/cuda:12.6.3-base-ubuntu24.04
+
+%post
+    echo "Build architecture:"
+    uname -m
+
+%runscript
+    echo "Container architecture: $(uname -m)"
