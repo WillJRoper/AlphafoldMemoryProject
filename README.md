@@ -30,17 +30,17 @@ export AF3_DB_DIR=/path/to/databases
 
 ## Profiling
 
-Submit a complete run with:
+Submit a complete run with the default `memory_characterisation` mode, which
+disables JAX GPU-memory preallocation:
 
 ```bash
 sbatch scripts/profile_alphafold.sh inputs/example.json
 ```
 
-The default `baseline` mode retains JAX GPU-memory preallocation. To measure a
-more representative GPU-memory time series, disable preallocation with:
+Set `PROFILE_MODE=baseline` explicitly to retain JAX preallocation:
 
 ```bash
-sbatch --export=ALL,PROFILE_MODE=memory-characterisation \
+sbatch --export=ALL,PROFILE_MODE=baseline \
   scripts/profile_alphafold.sh inputs/example.json
 ```
 
