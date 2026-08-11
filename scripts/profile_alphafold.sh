@@ -4,6 +4,7 @@
 # partition, and QOS options when calling sbatch.
 #SBATCH --job-name=af3-profile
 #SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --time=04:00:00
