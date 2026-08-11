@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 
-# Slurm resources for one profiling run. These site-specific values can be
-# changed here or overridden with options passed to sbatch.
+# Slurm resources for one profiling run. Supply site-specific account,
+# partition, and QOS options when calling sbatch.
 #SBATCH --job-name=af3-profile
-#SBATCH --account=gpu_stuart.prj
-#SBATCH --partition=gpu_gh200_bmrc
-#SBATCH --qos=gpu_bmrc_4hr
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8

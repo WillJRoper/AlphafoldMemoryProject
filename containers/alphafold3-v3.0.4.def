@@ -27,7 +27,7 @@ Stage: final
     /uvx /bin/uvx
 
 %files
-    /well/stuart/users/wuy477/AlphafoldMemoryProject/alphafold3 /app/alphafold
+    alphafold3 /app/alphafold
 
 
 # -----------------------------------------------------------------------------

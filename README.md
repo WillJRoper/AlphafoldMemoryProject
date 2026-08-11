@@ -11,9 +11,8 @@ AlphaFold 3 is included as a Git submodule pinned to v3.0.4:
 git submodule update --init --recursive
 ```
 
-The ARM64 container definition is
-`containers/alphafold3-v3.0.4.def`. Update its `%files` source path for the
-local checkout, then build it on an ARM64 GH200 node:
+The ARM64 container definition is `containers/alphafold3-v3.0.4.def`. Build it
+from the repository root on an ARM64 GH200 node:
 
 ```bash
 apptainer build images/alphafold3-v3.0.4-arm64.sif \
@@ -34,16 +33,19 @@ Submit a complete run with the default `memory_characterisation` mode, which
 disables JAX GPU-memory preallocation:
 
 ```bash
-sbatch scripts/profile_alphafold.sh inputs/example.json
+sbatch scripts/profile_alphafold.sh inputs/lysozyme_1lyz.json
 ```
 
 Set `PROFILE_MODE=baseline` explicitly to retain JAX preallocation:
 
 ```bash
 sbatch --export=ALL,PROFILE_MODE=baseline \
-  scripts/profile_alphafold.sh inputs/example.json
+  scripts/profile_alphafold.sh inputs/lysozyme_1lyz.json
 ```
 
 `AF3_STAGE` selects `complete`, `data-pipeline`, or `inference`. Generated
 images, outputs, and profiling results are ignored by Git. Input JSON files
 belong in `inputs/`; each profiling run is written beneath `profiles/`.
+
+Validate a completed run with `python3 scripts/validate_profile.py profiles/RUN`.
+Pass `--reference 1LYZ.cif` to also calculate RMSD and TM-score with US-align.

@@ -1,0 +1,14 @@
+{
+  "name": "lysozyme_1lyz",
+  "modelSeeds": [1],
+  "sequences": [
+    {
+      "protein": {
+        "id": "A",
+        "sequence": "KVFGRCELAAAMKRHGLDNYRGYSLGNWVCAAKFESNFNTQATNRNTDGSTDYGILQINSRWWCNDGRTPGSRNLCNIPCSALLSSDITASVNCAKKIVSDGNGMNAWVAWRNRCKGTDVQAWIRGCRL"
+      }
+    }
+  ],
+  "dialect": "alphafold3",
+  "version": 2
+}
