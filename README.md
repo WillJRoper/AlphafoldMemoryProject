@@ -1,31 +1,34 @@
 # AlphaFold 3 profiling
 
-Reproducible runtime and memory profiling for AlphaFold 3 on NVIDIA GH200
-systems. AlphaFold runs in an Apptainer container launched from a Slurm job.
+Reproducible runtime and memory profiling for AlphaFold 3 on NVIDIA GPUs.
+AlphaFold runs in an Apptainer container launched from a Slurm job.
 
 ## Setup
 
-AlphaFold 3 is included as a Git submodule pinned to v3.0.4:
+Profiling uses the shared AlphaFold 3.0.1 Apptainer image, model parameters, and
+databases by default. The repository also retains AlphaFold 3 as a Git submodule
+pinned to v3.0.4 for custom image builds or future source changes:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-The ARM64 container definition is `containers/alphafold3-v3.0.4.def`. Build it
-from the repository root on an ARM64 GH200 node:
+The optional ARM64 container definition is `containers/alphafold3-v3.0.4.def`:
 
 ```bash
 apptainer build images/alphafold3-v3.0.4-arm64.sif \
   containers/alphafold3-v3.0.4.def
 ```
 
-Model parameters and databases are not included. Set their locations before
-submitting a profiling job:
+Shared defaults used by the profiling script are:
 
-```bash
-export AF3_MODEL_DIR=/path/to/models
-export AF3_DB_DIR=/path/to/databases
+```text
+/apps/singularity/alphafold3/alphafold-3.0.1-20250210.sif
+/data/belmont/alphafold3-parameters
+/data/belmont/alphafold-3.0.1-20250212
 ```
+
+Belmont storage is available only from relevant login and `gpu_strubi` nodes.
 
 ## Profiling
 

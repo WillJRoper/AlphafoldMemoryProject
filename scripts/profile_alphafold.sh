@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 
-# Slurm resources for one profiling run. Supply site-specific account,
-# partition, and QOS options when calling sbatch.
+# Slurm resources for the shared AlphaFold installation. Belmont storage is
+# mounted on gpu_strubi nodes; submit from a login node where it is visible.
 #SBATCH --job-name=af3-profile
+#SBATCH --account=gpu_stuart.prj
+#SBATCH --partition=gpu_strubi
+#SBATCH --qos=gpu_bmrc_4hr
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --time=04:00:00
 
 set -euo pipefail
@@ -17,13 +20,16 @@ set -euo pipefail
 # from any working directory.
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Apptainer image containing the pinned AlphaFold installation.
-AF3_SIF="${AF3_SIF:-$PROJECT_ROOT/images/alphafold3-v3.0.4-arm64.sif}"
+# Shared Apptainer image containing AlphaFold 3.0.1.
+AF3_SIF="${AF3_SIF:-/apps/singularity/alphafold3/alphafold-3.0.1-20250210.sif}"
 
-# Host directories containing model parameters and reference databases. They
-# have no repository defaults and must be set for stages that use them.
-AF3_MODEL_DIR="${AF3_MODEL_DIR:-}"
-AF3_DB_DIR="${AF3_DB_DIR:-}"
+# Shared model parameters and reference databases on Belmont storage.
+AF3_MODEL_DIR="${AF3_MODEL_DIR:-/data/belmont/alphafold3-parameters}"
+AF3_DB_DIR="${AF3_DB_DIR:-/data/belmont/alphafold-3.0.1-20250212}"
+
+# Shared image release. Exact source commit is not published with the path.
+AF3_VERSION="${AF3_VERSION:-3.0.1}"
+AF3_COMMIT="${AF3_COMMIT:-unknown}"
 
 # AlphaFold stages to run: complete, data-pipeline, or inference.
 AF3_STAGE="${AF3_STAGE:-complete}"
@@ -55,22 +61,22 @@ memory_characterisation) JAX_PREALLOCATE=false ;;
 *) error "PROFILE_MODE must be baseline or memory_characterisation" ;;
 esac
 
-# Build stage-specific AF3 arguments. Model parameters and databases are bound
-# read-only and only exposed to stages that need them.
+# Build stage-specific AF3 arguments. Shared data is exposed at conventional
+# paths inside the container and mounted read-only.
 BIND_ARGS=(--bind "$PROJECT_ROOT:$PROJECT_ROOT")
 STAGE_ARGS=()
 case "$AF3_STAGE" in
 complete)
-    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:$AF3_MODEL_DIR:ro" --bind "$AF3_DB_DIR:$AF3_DB_DIR:ro")
-    STAGE_ARGS=(--run_data_pipeline=true --run_inference=true --model_dir="$AF3_MODEL_DIR" --db_dir="$AF3_DB_DIR")
+    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models:ro" --bind "$AF3_DB_DIR:/root/public_databases:ro")
+    STAGE_ARGS=(--run_data_pipeline=true --run_inference=true --model_dir=/root/models --db_dir=/root/public_databases)
     ;;
 data-pipeline)
-    BIND_ARGS+=(--bind "$AF3_DB_DIR:$AF3_DB_DIR:ro")
-    STAGE_ARGS=(--run_data_pipeline=true --run_inference=false --db_dir="$AF3_DB_DIR")
+    BIND_ARGS+=(--bind "$AF3_DB_DIR:/root/public_databases:ro")
+    STAGE_ARGS=(--run_data_pipeline=true --run_inference=false --db_dir=/root/public_databases)
     ;;
 inference)
-    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:$AF3_MODEL_DIR:ro")
-    STAGE_ARGS=(--run_data_pipeline=false --run_inference=true --model_dir="$AF3_MODEL_DIR")
+    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models:ro")
+    STAGE_ARGS=(--run_data_pipeline=false --run_inference=true --model_dir=/root/models)
     ;;
 *) error "AF3_STAGE must be complete, data-pipeline, or inference" ;;
 esac
@@ -96,10 +102,7 @@ COMMAND=(
     "$@"
 )
 
-# Read the AF3 version embedded during image construction and save an inventory
-# of GPUs visible to this Slurm allocation.
-AF_VERSION="$(apptainer exec "$AF3_SIF" cat /opt/alphafold3_version)"
-AF_COMMIT="$(apptainer exec "$AF3_SIF" cat /opt/alphafold3_commit)"
+# Save an inventory of GPUs visible to this Slurm allocation.
 GPU_ARGS=()
 [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]] && GPU_ARGS+=(--id="$CUDA_VISIBLE_DEVICES")
 nvidia-smi "${GPU_ARGS[@]}" \
@@ -112,7 +115,7 @@ python3 "$PROJECT_ROOT/scripts/profile_metadata.py" create \
     --output "$RUN_DIR/metadata.json" --input "$INPUT_JSON" --sif "$AF3_SIF" \
     --mode "$PROFILE_MODE" --stage "$AF3_STAGE" --interval "$SAMPLING_INTERVAL_MS" \
     --gpu-inventory "$RUN_DIR/gpu_inventory.csv" \
-    --af-version "$AF_VERSION" --af-commit "$AF_COMMIT" \
+    --af-version "$AF3_VERSION" --af-commit "$AF3_COMMIT" \
     -- "${COMMAND[@]}"
 
 # Start nvidia-smi in the background. Units are included in column names rather
