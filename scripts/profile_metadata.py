@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import socket
+import sys
 import time
 from pathlib import Path
 
@@ -86,6 +87,7 @@ def create(args):
         "host": {
             "hostname": socket.gethostname(),
             "architecture": platform.machine(),
+            "python_version": sys.version.split()[0],
             "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
             "gpus": gpus,
         },
