@@ -6,9 +6,11 @@
 #SBATCH --account=gpu_stuart.prj
 #SBATCH --partition=gpu_strubi
 #SBATCH --qos=gpu_bmrc_4hr
+#SBATCH --output=logs/af3-profile-%j.out
+#SBATCH --error=logs/af3-profile-%j.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a100-pcie-80gb:1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=04:00:00
 
@@ -16,9 +18,9 @@ set -euo pipefail
 
 # ============================== Configuration ==============================
 
-# Absolute repository path, derived from this script so submission can happen
-# from any working directory.
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Repository path from which sbatch was called. Slurm executes a copy of this
+# script from its spool directory, so BASH_SOURCE does not point to the checkout.
+PROJECT_ROOT="$SLURM_SUBMIT_DIR"
 
 # Shared Apptainer image containing AlphaFold 3.0.1.
 AF3_SIF="${AF3_SIF:-/apps/singularity/alphafold3/alphafold-3.0.1-20250210.sif}"
