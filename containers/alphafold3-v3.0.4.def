@@ -19,6 +19,23 @@ Stage: final
 
 
 # -----------------------------------------------------------------------------
+# Host-side setup
+#
+# Runs on the host before files are copied into the container rootfs.
+# Extracts git provenance from the host submodule checkout.
+# -----------------------------------------------------------------------------
+
+%setup
+    mkdir -p "${APPTAINER_ROOTFS}/opt"
+    git -C alphafold3 describe --tags --always --dirty \
+        > "${APPTAINER_ROOTFS}/opt/alphafold3_version" 2>/dev/null \
+        || echo "v3.0.4" > "${APPTAINER_ROOTFS}/opt/alphafold3_version"
+    git -C alphafold3 rev-parse HEAD \
+        > "${APPTAINER_ROOTFS}/opt/alphafold3_commit" 2>/dev/null \
+        || echo "85c4d20505fd5cef05eac22b534d4e793971ae69" > "${APPTAINER_ROOTFS}/opt/alphafold3_commit"
+
+
+# -----------------------------------------------------------------------------
 # Copy uv and the checked-out AlphaFold source into the image
 # -----------------------------------------------------------------------------
 
@@ -96,13 +113,6 @@ Stage: final
     export UV_COMPILE_BYTECODE=1
     export UV_PROJECT_ENVIRONMENT=/alphafold3_venv
     export PATH="/hmmer/bin:/alphafold3_venv/bin:$PATH"
-
-    # Record the exact AF3 revision used to produce this image.
-    git -C /app/alphafold describe --tags --always --dirty \
-        > /opt/alphafold3_version
-
-    git -C /app/alphafold rev-parse HEAD \
-        > /opt/alphafold3_commit
 
     # Record the architecture this image was built on, since the same
     # definition is used for both ARM64 (Grace Hopper) and x86_64 (A100) hosts.
