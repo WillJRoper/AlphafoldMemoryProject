@@ -57,21 +57,30 @@ error() {
 INPUT_JSON="$(realpath "$1")"
 shift
 
-# Convert profiling mode into the JAX settings passed through Apptainer. The
-# shared installation's recommended configuration uses unified host memory.
+# Convert profiling mode into the JAX settings passed through Apptainer.
+# Unified host memory (TF_FORCE_UNIFIED_MEMORY=true) is opt-in via
+# AF3_UNIFIED_MEMORY, for memory-constrained hosts where device memory alone
+# is insufficient; it is not part of either profiling profile.
 case "$PROFILE_MODE" in
 baseline)
     JAX_PREALLOCATE=true
-    FORCE_UNIFIED_MEMORY=false
     JAX_MEMORY_FRACTION=0.95
     ;;
 memory_characterisation)
     JAX_PREALLOCATE=false
-    FORCE_UNIFIED_MEMORY=true
-    JAX_MEMORY_FRACTION=3.2
+    JAX_MEMORY_FRACTION=0.95
     ;;
 *) error "PROFILE_MODE must be baseline or memory_characterisation" ;;
 esac
+
+# Shared installation recommended unified memory with a large host-side
+# fraction; keep that as an explicit opt-in rather than a profiling default.
+if [[ "${AF3_UNIFIED_MEMORY:-false}" == true ]]; then
+    FORCE_UNIFIED_MEMORY=true
+    JAX_MEMORY_FRACTION=3.2
+else
+    FORCE_UNIFIED_MEMORY=false
+fi
 
 # Mirror the bind layout supplied with the shared AlphaFold installation.
 BIND_ARGS=(--bind "$PROJECT_ROOT:/root/af_inout")

@@ -69,8 +69,8 @@ time via `sbatch` flags (see the comment at the top of `arc/profile_alphafold.sh
 ## Profiling
 
 Submit a complete run with the default `memory_characterisation` mode, which
-uses the shared installation's recommended unified-memory settings and disables
-JAX GPU-memory preallocation:
+disables JAX GPU-memory preallocation to give a more representative device-memory
+time series:
 
 ```bash
 sbatch bmrc/profile_alphafold.sh inputs/lysozyme_1lyz.json
@@ -82,6 +82,15 @@ Set `PROFILE_MODE=baseline` explicitly to retain JAX preallocation:
 ```bash
 sbatch --export=ALL,PROFILE_MODE=baseline \
   bmrc/profile_alphafold.sh inputs/lysozyme_1lyz.json
+```
+
+Unified host memory (`TF_FORCE_UNIFIED_MEMORY=true`, with a larger
+`XLA_CLIENT_MEM_FRACTION`) is supported by both shared installations but is not
+part of either profiling mode; enable it explicitly for memory-constrained
+hosts via:
+
+```bash
+sbatch --export=ALL,AF3_UNIFIED_MEMORY=true ...
 ```
 
 `AF3_STAGE` selects `complete`, `data-pipeline`, or `inference`. Generated

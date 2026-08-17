@@ -71,21 +71,30 @@ error() {
 INPUT_JSON="$(realpath "$1")"
 shift
 
-# Convert profiling mode into the JAX settings passed through Apptainer,
-# following the unified-memory configuration proven on ARC's A100 nodes.
+# Convert profiling mode into the JAX settings passed through Apptainer.
+# Unified host memory (TF_FORCE_UNIFIED_MEMORY=true) is opt-in via
+# AF3_UNIFIED_MEMORY, for memory-constrained hosts where device memory alone
+# is insufficient; it is not part of either profiling profile.
 case "$PROFILE_MODE" in
 baseline)
     JAX_PREALLOCATE=true
-    FORCE_UNIFIED_MEMORY=false
     JAX_MEMORY_FRACTION=0.95
     ;;
 memory_characterisation)
     JAX_PREALLOCATE=false
-    FORCE_UNIFIED_MEMORY=true
-    JAX_MEMORY_FRACTION=3.2
+    JAX_MEMORY_FRACTION=0.95
     ;;
 *) error "PROFILE_MODE must be baseline or memory_characterisation" ;;
 esac
+
+# Shared installation recommended unified memory with a large host-side
+# fraction; keep that as an explicit opt-in rather than a profiling default.
+if [[ "${AF3_UNIFIED_MEMORY:-false}" == true ]]; then
+    FORCE_UNIFIED_MEMORY=true
+    JAX_MEMORY_FRACTION=3.2
+else
+    FORCE_UNIFIED_MEMORY=false
+fi
 
 # Build stage-specific AF3 arguments. Model parameters and databases are bound
 # read-only and only exposed to stages that need them. Only the GPU-requiring
