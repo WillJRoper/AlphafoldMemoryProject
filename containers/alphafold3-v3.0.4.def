@@ -1,4 +1,5 @@
-# AlphaFold 3 v3.0.4 — ARM64 / NVIDIA Grace Hopper
+# AlphaFold 3 v3.0.4 — built on the same host architecture it runs on
+# (verified on ARM64 / NVIDIA Grace Hopper; also builds on x86_64 for A100).
 
 Bootstrap: docker
 From: ghcr.io/astral-sh/uv:0.9.24
@@ -15,7 +16,6 @@ Stage: final
 
 %labels
     AlphaFoldVersion v3.0.4
-    Architecture aarch64
 
 
 # -----------------------------------------------------------------------------
@@ -104,6 +104,10 @@ Stage: final
     git -C /app/alphafold rev-parse HEAD \
         > /opt/alphafold3_commit
 
+    # Record the architecture this image was built on, since the same
+    # definition is used for both ARM64 (Grace Hopper) and x86_64 (A100) hosts.
+    uname -m > /opt/alphafold3_arch
+
 
     # -------------------------------------------------------------------------
     # Build the patched HMMER 3.4 used by AlphaFold
@@ -179,7 +183,6 @@ Stage: final
 # -----------------------------------------------------------------------------
 
 %test
-    test "$(uname -m)" = "aarch64"
     /alphafold3_venv/bin/python3 --version
     /hmmer/bin/jackhmmer -h >/dev/null
     /alphafold3_venv/bin/python3 -c 'import alphafold3'

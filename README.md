@@ -46,21 +46,24 @@ Belmont storage is available only from relevant login and `gpu_strubi` nodes.
 
 ### ARC
 
-Shared defaults used by `arc/profile_alphafold.sh`:
+`arc/profile_alphafold.sh` uses our own submodule-built image rather than any
+shared AlphaFold installation; only the model parameters and databases are
+taken from shared storage:
 
 ```text
-/data/dtce-oxrse/dtce0101/sw-dev/alphafold/af3_304.sif
-/data/dtce-oxrse/dtce0101/sw-dev/alphafold/alphafold3/run_alphafold.py
 /data/dtce-oxrse/dtce0101/af_artefacts/model_param
 /data/dtce-oxrse/dtce0101/af_artefacts/public_databases
 ```
 
-This SIF has no working `%runscript`; `run_alphafold.py` is invoked directly
-inside the container via `apptainer exec`. The data-pipeline stage needs no
-GPU and a very different resource shape from inference; the script's default
-`#SBATCH` block targets the GPU case, and data-pipeline submissions must
-override partition, GRES, memory, CPUs, and time via `sbatch` flags (see the
-comment at the top of `arc/profile_alphafold.sh`).
+Build an image for ARC (see [Setup](#setup) above for the command), matching
+the architecture of the node you intend to use — `x86_64` for the A100 pool,
+or reuse an ARM64 build on the single GH200 node (`htc-g057`). Place it at
+`images/alphafold3-v3.0.4-x86_64.sif`, or set `AF3_SIF` to its actual path.
+
+The data-pipeline stage needs no GPU and a very different resource shape from
+inference; the script's default `#SBATCH` block targets the GPU case, and
+data-pipeline submissions must override partition, GRES, memory, CPUs, and
+time via `sbatch` flags (see the comment at the top of `arc/profile_alphafold.sh`).
 
 ## Profiling
 

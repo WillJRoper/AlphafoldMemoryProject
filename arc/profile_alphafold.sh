@@ -32,20 +32,15 @@ set -euo pipefail
 # script from its spool directory, so BASH_SOURCE does not point to the checkout.
 PROJECT_ROOT="$SLURM_SUBMIT_DIR"
 
-# Shared AlphaFold installation: SIF and source checkout used to locate
-# run_alphafold.py, both resolved as absolute paths inside the container.
-AF3_HOME="${AF3_HOME:-/data/dtce-oxrse/dtce0101/sw-dev/alphafold}"
-AF3_SIF="${AF3_SIF:-$AF3_HOME/af3_304.sif}"
-AF3_RUN_SCRIPT="${AF3_RUN_SCRIPT:-$AF3_HOME/alphafold3/run_alphafold.py}"
+# Our own submodule-built image (see containers/alphafold3-v3.0.4.def). Build
+# an x86_64 image on an ARC interactive/A100 node, or reuse an ARM64 build on
+# the single GH200 node (htc-g057).
+AF3_SIF="${AF3_SIF:-$PROJECT_ROOT/images/alphafold3-v3.0.4-x86_64.sif}"
 
-# Shared model parameters and reference databases.
+# Only these two paths are needed from the shared artefact directory; the SIF
+# and AlphaFold source come from our own submodule/image instead.
 AF3_MODEL_DIR="${AF3_MODEL_DIR:-/data/dtce-oxrse/dtce0101/af_artefacts/model_param}"
 AF3_DB_DIR="${AF3_DB_DIR:-/data/dtce-oxrse/dtce0101/af_artefacts/public_databases}"
-
-# Shared image release, matching the submodule pin. Exact source commit is
-# not published with the path.
-AF3_VERSION="${AF3_VERSION:-3.0.4}"
-AF3_COMMIT="${AF3_COMMIT:-unknown}"
 
 # JAX compilation cache, shared across runs to avoid recompiling per job.
 AF3_JAX_CACHE_DIR="${AF3_JAX_CACHE_DIR:-$HOME/.cache}"
@@ -73,8 +68,8 @@ error() {
 INPUT_JSON="$(realpath "$1")"
 shift
 
-# Convert profiling mode into the JAX settings passed through Apptainer. The
-# shared installation's recommended configuration uses unified host memory.
+# Convert profiling mode into the JAX settings passed through Apptainer,
+# following the unified-memory configuration proven on ARC's A100 nodes.
 case "$PROFILE_MODE" in
 baseline)
     JAX_PREALLOCATE=true
@@ -89,60 +84,58 @@ memory_characterisation)
 *) error "PROFILE_MODE must be baseline or memory_characterisation" ;;
 esac
 
+# Build stage-specific AF3 arguments. Model parameters and databases are bound
+# read-only and only exposed to stages that need them. Only the GPU-requiring
+# stages need --nv; the data-pipeline stage runs on CPU-only nodes with no
+# GPU allocated to the job.
+BIND_ARGS=(--bind "$PROJECT_ROOT:$PROJECT_ROOT")
+STAGE_ARGS=()
+NV_FLAG=()
+case "$AF3_STAGE" in
+complete)
+    NV_FLAG=(--nv)
+    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:$AF3_MODEL_DIR:ro" --bind "$AF3_DB_DIR:$AF3_DB_DIR:ro")
+    STAGE_ARGS=(--run_data_pipeline=true --run_inference=true --model_dir="$AF3_MODEL_DIR" --db_dir="$AF3_DB_DIR")
+    ;;
+data-pipeline)
+    BIND_ARGS+=(--bind "$AF3_DB_DIR:$AF3_DB_DIR:ro")
+    STAGE_ARGS=(--run_data_pipeline=true --run_inference=false --db_dir="$AF3_DB_DIR")
+    ;;
+inference)
+    NV_FLAG=(--nv)
+    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:$AF3_MODEL_DIR:ro")
+    STAGE_ARGS=(--run_data_pipeline=false --run_inference=true --model_dir="$AF3_MODEL_DIR")
+    ;;
+*) error "AF3_STAGE must be complete, data-pipeline, or inference" ;;
+esac
+
 # Keep metadata, raw measurements, logs, timing, and AF3 output together. UTC
 # timestamp makes runs sortable; Slurm job ID links them to scheduler records.
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-${SLURM_JOB_ID}"
 RUN_DIR="$PROFILES_DIR/$RUN_ID"
 mkdir -p "$RUN_DIR/output"
 
-# Mirror the bind layout of the proven submission scripts: AF3_HOME provides
-# the SIF and run_alphafold.py, input/output use their own separate binds.
-BIND_ARGS=(
-    --bind "$AF3_HOME:$AF3_HOME"
-    --bind "$(dirname "$INPUT_JSON"):/root/af_input"
-    --bind "$RUN_DIR/output:/root/af_output"
-)
-STAGE_ARGS=()
-# Only the GPU-requiring stages need --nv; the data-pipeline stage runs on
-# CPU-only nodes with no GPU allocated to the job.
-NV_FLAG=()
-case "$AF3_STAGE" in
-complete)
-    NV_FLAG=(--nv)
-    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models" --bind "$AF3_DB_DIR:/root/public_databases")
-    STAGE_ARGS=(--run_data_pipeline=true --run_inference=true --model_dir=/root/models --db_dir=/root/public_databases)
-    ;;
-data-pipeline)
-    BIND_ARGS+=(--bind "$AF3_DB_DIR:/root/public_databases")
-    STAGE_ARGS=(--run_data_pipeline=true --run_inference=false --db_dir=/root/public_databases)
-    ;;
-inference)
-    NV_FLAG=(--nv)
-    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models")
-    STAGE_ARGS=(--run_data_pipeline=false --run_inference=true --model_dir=/root/models)
-    ;;
-*) error "AF3_STAGE must be complete, data-pipeline, or inference" ;;
-esac
-
 # APPTAINERENV_ variables override image defaults inside the container.
 export APPTAINERENV_CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-}"
 export APPTAINERENV_XLA_PYTHON_CLIENT_PREALLOCATE="$JAX_PREALLOCATE"
 export APPTAINERENV_TF_FORCE_UNIFIED_MEMORY="$FORCE_UNIFIED_MEMORY"
 export APPTAINERENV_XLA_CLIENT_MEM_FRACTION="$JAX_MEMORY_FRACTION"
-export APPTAINERENV_XLA_FLAGS="${XLA_FLAGS:---xla_gpu_enable_triton_gemm=false}"
 
 # Construct the command as an array so paths and extra AF3 arguments retain
-# their exact shell boundaries. This image has no working %runscript, so
-# run_alphafold.py is invoked directly via apptainer exec.
+# their exact shell boundaries. Our own image has a working %runscript, so
+# this is a plain apptainer run rather than an explicit python invocation.
 COMMAND=(
-    apptainer exec "${NV_FLAG[@]}" "${BIND_ARGS[@]}" "$AF3_SIF"
-    python "$AF3_RUN_SCRIPT"
-    --json_path="/root/af_input/$(basename "$INPUT_JSON")"
-    --output_dir="/root/af_output"
+    apptainer run "${NV_FLAG[@]}" "${BIND_ARGS[@]}" "$AF3_SIF"
+    --json_path="$INPUT_JSON"
+    --output_dir="$RUN_DIR/output"
     --jax_compilation_cache_dir="$AF3_JAX_CACHE_DIR"
     "${STAGE_ARGS[@]}"
     "$@"
 )
+
+# Read the AF3 version and commit embedded during our own image's build.
+AF_VERSION="$(apptainer exec "$AF3_SIF" cat /opt/alphafold3_version)"
+AF_COMMIT="$(apptainer exec "$AF3_SIF" cat /opt/alphafold3_commit)"
 
 # Save an inventory of GPUs visible to this Slurm allocation. Skipped for the
 # data-pipeline stage, which requests no GPU.
@@ -162,7 +155,7 @@ python3 "$PROJECT_ROOT/scripts/profile_metadata.py" create \
     --output "$RUN_DIR/metadata.json" --input "$INPUT_JSON" --sif "$AF3_SIF" \
     --mode "$PROFILE_MODE" --stage "$AF3_STAGE" --interval "$SAMPLING_INTERVAL_MS" \
     --gpu-inventory "$RUN_DIR/gpu_inventory.csv" \
-    --af-version "$AF3_VERSION" --af-commit "$AF3_COMMIT" \
+    --af-version "$AF_VERSION" --af-commit "$AF_COMMIT" \
     -- "${COMMAND[@]}"
 
 SAMPLER_PID=""
