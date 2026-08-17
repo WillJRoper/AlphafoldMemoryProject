@@ -56,9 +56,10 @@ taken from shared storage:
 ```
 
 Build an image for ARC (see [Setup](#setup) above for the command), matching
-the architecture of the node you intend to use — `x86_64` for the A100 pool,
-or reuse an ARM64 build on the single GH200 node (`htc-g057`). Place it at
-`images/alphafold3-v3.0.4-x86_64.sif`, or set `AF3_SIF` to its actual path.
+the architecture of the node you intend to use. GPUs on ARC are exposed on the
+`htc` cluster, whose A100 nodes are `x86_64` with 40GB of device memory; place
+the image at `images/alphafold3-v3.0.4-x86_64.sif`, or set `AF3_SIF` to its
+actual path.
 
 The data-pipeline stage needs no GPU and a very different resource shape from
 inference; the script's default `#SBATCH` block targets the GPU case, and

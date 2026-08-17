@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 
 # Defaults below target the GPU (complete/inference) case on ARC's htc
-# cluster. The data-pipeline stage needs no GPU and a very different resource
-# shape (see colleague's proven submit_dp_* script); override every one of
-# these via sbatch CLI flags for that case, e.g.:
+# cluster. `arc-login` submits to the `arc` cluster by default, so htc is
+# selected explicitly here rather than relying on the login node in use.
+# The data-pipeline stage needs no GPU and a very different resource shape
+# (see colleague's proven submit_dp_* script); override every one of these
+# via sbatch CLI flags for that case, e.g.:
 #   sbatch --partition=medium,long --gpus-per-node=0 --constraint= \
 #     --mem=128G --cpus-per-task=32 --time=2-00:00:00 \
 #     --export=ALL,AF3_STAGE=data-pipeline \
 #     arc/profile_alphafold.sh inputs/lysozyme_1lyz.json
 #SBATCH --job-name=af3-profile
+#SBATCH --clusters=htc
 #SBATCH --account=dtce-oxrse
 #SBATCH --partition=short
 #SBATCH --output=logs/af3-profile-%j.log
@@ -16,7 +19,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gpus-per-node=1
-#SBATCH --constraint=[gpu_mem:80GB&gpu_sku:A100]
+#SBATCH --gres=gpu:a100:1
 #SBATCH --mem=64G
 #SBATCH --time=01:00:00
 
