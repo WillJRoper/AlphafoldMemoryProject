@@ -77,6 +77,7 @@ def create(args):
             "gpu_sampling_interval_ms": args.interval,
             "jax_preallocate": os.environ["APPTAINERENV_XLA_PYTHON_CLIENT_PREALLOCATE"],
             "jax_memory_fraction": os.environ["APPTAINERENV_XLA_CLIENT_MEM_FRACTION"],
+            "tf_force_unified_memory": os.environ["APPTAINERENV_TF_FORCE_UNIFIED_MEMORY"],
         },
         "slurm": {
             "job_id": os.environ.get("SLURM_JOB_ID"),

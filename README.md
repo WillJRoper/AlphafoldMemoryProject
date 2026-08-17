@@ -3,11 +3,23 @@
 Reproducible runtime and memory profiling for AlphaFold 3 on NVIDIA GPUs.
 AlphaFold runs in an Apptainer container launched from a Slurm job.
 
+Submission scripts are site-specific because each HPC has a different shared
+AlphaFold installation and Slurm configuration (account/partition/GRES syntax,
+and in some cases a different container invocation model entirely):
+
+```text
+bmrc/profile_alphafold.sh   BMRC: apptainer run, gpu_strubi partition
+arc/profile_alphafold.sh    ARC:  apptainer exec, htc cluster, dtce-oxrse account
+```
+
+Both share the same reproducibility tooling in `scripts/` (metadata capture,
+GPU sampling, and result validation), so neither duplicates the profiling
+logic itself.
+
 ## Setup
 
-Profiling uses the shared AlphaFold 3.0.1 Apptainer image, model parameters, and
-databases by default. The repository also retains AlphaFold 3 as a Git submodule
-pinned to v3.0.4 for custom image builds or future source changes:
+AlphaFold 3 is retained as a Git submodule pinned to v3.0.4, for custom image
+builds, source changes, or forks:
 
 ```bash
 git submodule update --init --recursive
@@ -20,7 +32,9 @@ apptainer build images/alphafold3-v3.0.4-arm64.sif \
   containers/alphafold3-v3.0.4.def
 ```
 
-Shared defaults used by the profiling script are:
+### BMRC
+
+Shared defaults used by `bmrc/profile_alphafold.sh`:
 
 ```text
 /apps/singularity/alphafold3/alphafold-3.0.1-20250210.sif
@@ -30,20 +44,40 @@ Shared defaults used by the profiling script are:
 
 Belmont storage is available only from relevant login and `gpu_strubi` nodes.
 
+### ARC
+
+Shared defaults used by `arc/profile_alphafold.sh`:
+
+```text
+/data/dtce-oxrse/dtce0101/sw-dev/alphafold/af3_304.sif
+/data/dtce-oxrse/dtce0101/sw-dev/alphafold/alphafold3/run_alphafold.py
+/data/dtce-oxrse/dtce0101/af_artefacts/model_param
+/data/dtce-oxrse/dtce0101/af_artefacts/public_databases
+```
+
+This SIF has no working `%runscript`; `run_alphafold.py` is invoked directly
+inside the container via `apptainer exec`. The data-pipeline stage needs no
+GPU and a very different resource shape from inference; the script's default
+`#SBATCH` block targets the GPU case, and data-pipeline submissions must
+override partition, GRES, memory, CPUs, and time via `sbatch` flags (see the
+comment at the top of `arc/profile_alphafold.sh`).
+
 ## Profiling
 
 Submit a complete run with the default `memory_characterisation` mode, which
-disables JAX GPU-memory preallocation:
+uses the shared installation's recommended unified-memory settings and disables
+JAX GPU-memory preallocation:
 
 ```bash
-sbatch scripts/profile_alphafold.sh inputs/lysozyme_1lyz.json
+sbatch bmrc/profile_alphafold.sh inputs/lysozyme_1lyz.json
+sbatch arc/profile_alphafold.sh inputs/lysozyme_1lyz.json
 ```
 
 Set `PROFILE_MODE=baseline` explicitly to retain JAX preallocation:
 
 ```bash
 sbatch --export=ALL,PROFILE_MODE=baseline \
-  scripts/profile_alphafold.sh inputs/lysozyme_1lyz.json
+  bmrc/profile_alphafold.sh inputs/lysozyme_1lyz.json
 ```
 
 `AF3_STAGE` selects `complete`, `data-pipeline`, or `inference`. Generated

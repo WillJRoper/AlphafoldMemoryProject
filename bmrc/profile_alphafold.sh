@@ -57,28 +57,36 @@ error() {
 INPUT_JSON="$(realpath "$1")"
 shift
 
-# Convert profiling mode into the JAX setting passed through Apptainer.
+# Convert profiling mode into the JAX settings passed through Apptainer. The
+# shared installation's recommended configuration uses unified host memory.
 case "$PROFILE_MODE" in
-baseline) JAX_PREALLOCATE=true ;;
-memory_characterisation) JAX_PREALLOCATE=false ;;
+baseline)
+    JAX_PREALLOCATE=true
+    FORCE_UNIFIED_MEMORY=false
+    JAX_MEMORY_FRACTION=0.95
+    ;;
+memory_characterisation)
+    JAX_PREALLOCATE=false
+    FORCE_UNIFIED_MEMORY=true
+    JAX_MEMORY_FRACTION=3.2
+    ;;
 *) error "PROFILE_MODE must be baseline or memory_characterisation" ;;
 esac
 
-# Build stage-specific AF3 arguments. Shared data is exposed at conventional
-# paths inside the container and mounted read-only.
-BIND_ARGS=(--bind "$PROJECT_ROOT:$PROJECT_ROOT")
+# Mirror the bind layout supplied with the shared AlphaFold installation.
+BIND_ARGS=(--bind "$PROJECT_ROOT:/root/af_inout")
 STAGE_ARGS=()
 case "$AF3_STAGE" in
 complete)
-    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models:ro" --bind "$AF3_DB_DIR:/root/public_databases:ro")
+    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models" --bind "$AF3_DB_DIR:/root/public_databases")
     STAGE_ARGS=(--run_data_pipeline=true --run_inference=true --model_dir=/root/models --db_dir=/root/public_databases)
     ;;
 data-pipeline)
-    BIND_ARGS+=(--bind "$AF3_DB_DIR:/root/public_databases:ro")
+    BIND_ARGS+=(--bind "$AF3_DB_DIR:/root/public_databases")
     STAGE_ARGS=(--run_data_pipeline=true --run_inference=false --db_dir=/root/public_databases)
     ;;
 inference)
-    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models:ro")
+    BIND_ARGS+=(--bind "$AF3_MODEL_DIR:/root/models")
     STAGE_ARGS=(--run_data_pipeline=false --run_inference=true --model_dir=/root/models)
     ;;
 *) error "AF3_STAGE must be complete, data-pipeline, or inference" ;;
@@ -86,21 +94,23 @@ esac
 
 # Keep metadata, raw measurements, logs, timing, and AF3 output together. UTC
 # timestamp makes runs sortable; Slurm job ID links them to scheduler records.
-RUN_DIR="$PROFILES_DIR/$(date -u +%Y%m%dT%H%M%SZ)-${SLURM_JOB_ID}"
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-${SLURM_JOB_ID}"
+RUN_DIR="$PROFILES_DIR/$RUN_ID"
 mkdir -p "$RUN_DIR/output"
 
 # APPTAINERENV_ variables override image defaults inside the container. Preserve
 # Slurm's GPU selection and make the JAX allocation policy explicit.
 export APPTAINERENV_CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-}"
 export APPTAINERENV_XLA_PYTHON_CLIENT_PREALLOCATE="$JAX_PREALLOCATE"
-export APPTAINERENV_XLA_CLIENT_MEM_FRACTION="${XLA_CLIENT_MEM_FRACTION:-0.95}"
+export APPTAINERENV_TF_FORCE_UNIFIED_MEMORY="$FORCE_UNIFIED_MEMORY"
+export APPTAINERENV_XLA_CLIENT_MEM_FRACTION="$JAX_MEMORY_FRACTION"
 
 # Construct the command as an array so paths and extra AF3 arguments retain
 # their exact shell boundaries.
 COMMAND=(
     apptainer run --nv "${BIND_ARGS[@]}" "$AF3_SIF"
-    --json_path="$INPUT_JSON"
-    --output_dir="$RUN_DIR/output"
+    --json_path="/root/af_inout/${INPUT_JSON#"$PROJECT_ROOT/"}"
+    --output_dir="/root/af_inout/profiles/$RUN_ID/output"
     "${STAGE_ARGS[@]}"
     "$@"
 )
