@@ -8,8 +8,10 @@ AlphaFold installation and Slurm configuration (account/partition/GRES syntax,
 and in some cases a different container invocation model entirely):
 
 ```text
-bmrc/profile_alphafold.sh   BMRC: apptainer run, gpu_strubi partition
-arc/profile_alphafold.sh    ARC:  apptainer exec, htc cluster, dtce-oxrse account
+bmrc/inference/profile_alphafold.sh       BMRC GPU inference
+bmrc/data_pipeline/profile_alphafold.sh  BMRC CPU data pipeline
+arc/inference/profile_alphafold.sh        ARC GPU inference
+arc/data_pipeline/profile_alphafold.sh   ARC CPU data pipeline
 ```
 
 Both share the same reproducibility tooling in `scripts/` (metadata capture,
@@ -34,7 +36,7 @@ apptainer build images/alphafold3-v3.0.4-arm64.sif \
 
 ### BMRC
 
-Shared defaults used by `bmrc/profile_alphafold.sh`:
+Shared defaults used by BMRC wrappers:
 
 ```text
 /apps/singularity/alphafold3/alphafold-3.0.1-20250210.sif
@@ -46,7 +48,7 @@ Belmont storage is available only from relevant login and `gpu_strubi` nodes.
 
 ### ARC
 
-`arc/profile_alphafold.sh` uses our own submodule-built image rather than any
+ARC wrappers use our own submodule-built image rather than any
 shared AlphaFold installation; only the model parameters and databases are
 taken from shared storage:
 
@@ -61,10 +63,9 @@ the architecture of the node you intend to use. GPUs on ARC are exposed on the
 the image at `images/alphafold3-v3.0.4-x86_64.sif`, or set `AF3_SIF` to its
 actual path.
 
-The data-pipeline stage needs no GPU and a very different resource shape from
-inference; the script's default `#SBATCH` block targets the GPU case, and
-data-pipeline submissions must override partition, GRES, memory, CPUs, and
-time via `sbatch` flags (see the comment at the top of `arc/profile_alphafold.sh`).
+Data pipeline and inference now have separate submit scripts and resource
+requests. Data pipeline requests CPU-only resources; inference requests one
+A100 GPU.
 
 ## Profiling
 
@@ -73,15 +74,28 @@ disables JAX GPU-memory preallocation to give a more representative device-memor
 time series:
 
 ```bash
-sbatch bmrc/profile_alphafold.sh inputs/lysozyme_1lyz.json
-sbatch arc/profile_alphafold.sh inputs/lysozyme_1lyz.json
+sbatch bmrc/inference/profile_alphafold.sh inputs/lysozyme_1lyz.json
+sbatch arc/inference/profile_alphafold.sh inputs/lysozyme_1lyz.json
 ```
+
+Run stages separately when measuring them independently. Submit data pipeline
+first using the original input; it writes AF3's feature-enriched `*_data.json`
+inside its profile output. Submit inference using that generated JSON:
+
+```bash
+sbatch arc/data_pipeline/profile_alphafold.sh inputs/lysozyme_1lyz.json
+sbatch arc/inference/profile_alphafold.sh \
+  profiles/DATA_RUN/output/lysozyme_1lyz/lysozyme_1lyz_data.json
+```
+
+The BMRC commands use the same pattern under `bmrc/`. Inference binds model
+parameters only; data pipeline binds databases only.
 
 Set `PROFILE_MODE=baseline` explicitly to retain JAX preallocation:
 
 ```bash
 sbatch --export=ALL,PROFILE_MODE=baseline \
-  bmrc/profile_alphafold.sh inputs/lysozyme_1lyz.json
+  bmrc/inference/profile_alphafold.sh inputs/lysozyme_1lyz.json
 ```
 
 Unified host memory (`TF_FORCE_UNIFIED_MEMORY=true`, with a larger
@@ -93,9 +107,9 @@ hosts via:
 sbatch --export=ALL,AF3_UNIFIED_MEMORY=true ...
 ```
 
-`AF3_STAGE` selects `complete`, `data-pipeline`, or `inference`. Generated
-images, outputs, and profiling results are ignored by Git. Input JSON files
-belong in `inputs/`; each profiling run is written beneath `profiles/`.
+Stage is selected by submit-script directory: `data_pipeline/` or `inference/`.
+Generated images, outputs, and profiling results are ignored by Git. Input JSON
+files belong in `inputs/`; each profiling run is written beneath `profiles/`.
 
 Validate a completed run with `python3 scripts/validate_profile.py profiles/RUN`.
 Pass `--reference 1LYZ.cif` to also calculate RMSD and TM-score with US-align.
