@@ -23,6 +23,10 @@ RUN_DIR="$ROOT/profiles/gh200-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/gh200-$SLURM_JOB_ID"
 CACHE="$HOME/.cache/alphafold3/gh200"
 mkdir -p "$CACHE" "$VENV"
+[[ -f "$VENV/pyvenv.cfg" ]] || {
+    printf 'error: run sbatch bmrc/setup_arm_environment.sh first\n' >&2
+    exit 2
+}
 
 COMMAND=(
     apptainer run --nv --bind "$VENV:/alphafold3_venv"

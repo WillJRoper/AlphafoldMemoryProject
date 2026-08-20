@@ -8,6 +8,8 @@ scripts/profile_command.sh  Generic command profiler
 scripts/plot_profile.py     Stage-aware plotting
 
 bmrc/data_pipeline.sh       BMRC data pipeline
+bmrc/setup_x86_environment.sh  One-time x86 environment setup
+bmrc/setup_arm_environment.sh  One-time ARM environment setup
 bmrc/inference_a100.sh      BMRC A100 inference
 bmrc/inference_v100.sh      BMRC V100 inference
 bmrc/inference_gh200.sh     BMRC GH200 inference
@@ -31,8 +33,15 @@ BMRC supplies matching AF3 3.0.3 images:
 /apps/singularity/alphafold3/alphafold-3.0.3-arm.sif
 ```
 
-The images populate a writable Python environment on first use. Scripts bind
-separate persistent environments for x86_64 and ARM64:
+Initialize writable Python environments once, before profiling:
+
+```bash
+sbatch bmrc/setup_x86_environment.sh
+sbatch bmrc/setup_arm_environment.sh
+```
+
+The setup jobs use the image's locked dependencies and verify `absl` and
+`alphafold3` imports. Profiling scripts bind separate persistent environments:
 
 ```text
 ~/.local/share/alphafold3/3.0.3/x86_64-venv
