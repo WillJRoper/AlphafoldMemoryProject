@@ -132,6 +132,13 @@ bash bmrc/scaling_repeat/submit.sh unified
 bash arc/scaling_repeat/submit.sh unified
 ```
 
+Restrict a BMRC repeat sweep to hardware not already completed:
+
+```bash
+bash bmrc/scaling_repeat/submit.sh device gh200
+bash bmrc/scaling_repeat/submit.sh unified 4096 a100
+```
+
 Unified sweeps request 320 GB host memory; device-only sweeps retain their
 smaller requests. Generate aggregate runtime and peak-GPU-memory curves with:
 
@@ -165,6 +172,12 @@ Or submit once and add inference sweeps later:
 bash bmrc/scaling_real/submit.sh pipeline
 bash bmrc/scaling_real/submit.sh device PIPELINE_ARRAY_ID
 bash bmrc/scaling_real/submit.sh unified PIPELINE_ARRAY_ID
+```
+
+Append `a100` or `gh200` to submit only that hardware, for example:
+
+```bash
+bash bmrc/scaling_real/submit.sh device PIPELINE_ARRAY_ID gh200
 ```
 
 Inference tasks use `aftercorr`, so each array index waits only for its matching

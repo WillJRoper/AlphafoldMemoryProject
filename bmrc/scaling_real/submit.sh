@@ -3,11 +3,23 @@
 set -euo pipefail
 
 MODE=${1:-all}
-PIPELINE_ID=${2:-}
+PIPELINE_ID=""
+HARDWARE=all
 [[ "$MODE" == all || "$MODE" == pipeline || "$MODE" == device || "$MODE" == unified ]] || {
-    printf 'usage: %s all|pipeline|device|unified [PIPELINE_ARRAY_ID]\n' "$0" >&2
+    printf 'usage: %s all|pipeline|device|unified [PIPELINE_ARRAY_ID] [all|a100|gh200]\n' "$0" >&2
     exit 2
 }
+(( $# )) && shift
+for argument in "$@"; do
+    if [[ "$argument" =~ ^[0-9]+$ ]]; then
+        PIPELINE_ID=$argument
+    elif [[ "$argument" == all || "$argument" == a100 || "$argument" == gh200 ]]; then
+        HARDWARE=$argument
+    else
+        printf 'error: invalid argument %s\n' "$argument" >&2
+        exit 2
+    fi
+done
 ROOT="$(git rev-parse --show-toplevel)"
 MANIFEST="$ROOT/inputs/scaling_real/manifest.tsv"
 INPUTS="$ROOT/.runtime/scaling_real/inputs"
@@ -29,6 +41,10 @@ MODES=("$MODE")
 for memory_mode in "${MODES[@]}"; do
     SBATCH_ARGS=(--chdir="$ROOT" --array="$ARRAY" --dependency="aftercorr:$PIPELINE_ID")
     [[ "$memory_mode" == unified ]] && SBATCH_ARGS+=(--mem=320G)
-    sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/scaling_real/a100.sh" "$PIPELINE_ID" "$memory_mode"
-    sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/scaling_real/gh200.sh" "$PIPELINE_ID" "$memory_mode"
+    HARDWARES=(a100 gh200)
+    [[ "$HARDWARE" != all ]] && HARDWARES=("$HARDWARE")
+    for hardware in "${HARDWARES[@]}"; do
+        sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/scaling_real/$hardware.sh" \
+            "$PIPELINE_ID" "$memory_mode"
+    done
 done
