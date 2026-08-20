@@ -23,7 +23,7 @@ def inference_seconds(log, fallback):
 def collect_profiles(root, family="repeat"):
     records = []
     failures = []
-    running = []
+    incomplete = []
     latest = {}
     if family == "real":
         pattern = re.compile(
@@ -57,7 +57,7 @@ def collect_profiles(root, family="repeat"):
     for _, metadata_path, metadata, tokens, target, accession, mode, label in latest.values():
         status = metadata.get("status")
         if status == "running":
-            running.append((label, target, mode, metadata_path.parent.name))
+            incomplete.append((label, target, mode, metadata_path.parent.name))
             continue
         if status != "completed" or metadata.get("exit_status") != 0:
             log_path = metadata_path.parent / "alphafold.log"
@@ -84,7 +84,7 @@ def collect_profiles(root, family="repeat"):
             "runtime_s": inference_seconds(log, metadata["wall_clock_seconds"]),
             "peak_memory_gib": samples["memory_used_mib"].max() / 1024,
         })
-    return pd.DataFrame(records), failures, running
+    return pd.DataFrame(records), failures, incomplete
 
 
 def main():
@@ -96,7 +96,7 @@ def main():
     output = args.output or Path("plots") / f"scaling_{args.family}.png"
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    data, failures, running = collect_profiles(args.profiles, args.family)
+    data, failures, incomplete = collect_profiles(args.profiles, args.family)
     if data.empty:
         raise SystemExit("no completed scaling profiles found")
     raw = data.copy()
@@ -121,16 +121,6 @@ def main():
                          marker=marker, color=color, label=f"{hardware} ({mode})")
             axes[1].plot(subset["tokens"], subset["peak_memory_gib"], style,
                          marker=marker, color=color, label=f"{hardware} ({mode})")
-            if args.family == "repeat" and mode == "device":
-                axes[1].step(
-                    subset["tokens"],
-                    subset["peak_memory_gib"],
-                    where="post",
-                    color=color,
-                    linewidth=3,
-                    alpha=0.25,
-                    label="_nolegend_",
-                )
             if args.family == "real":
                 points = raw[(raw["hardware"] == hardware) & (raw["mode"] == mode)]
                 axes[0].scatter(points["tokens"], points["runtime_s"],
@@ -141,24 +131,6 @@ def main():
                                      subset["runtime_max"], color=color, alpha=0.1)
                 axes[1].fill_between(subset["tokens"], subset["memory_min"],
                                      subset["memory_max"], color=color, alpha=0.1)
-        device = group[group["mode"] == "device"].sort_values("tokens")
-        anchors = device[device["tokens"] >= 512]
-        if not anchors.empty:
-            anchor = anchors.iloc[0]
-            end_tokens = group["tokens"].max()
-            reference_tokens = [anchor["tokens"], end_tokens]
-            reference_runtime = [
-                anchor["runtime_s"],
-                anchor["runtime_s"] * end_tokens / anchor["tokens"],
-            ]
-            axes[0].plot(
-                reference_tokens,
-                reference_runtime,
-                color=color,
-                ls=":",
-                alpha=0.7,
-                label=f"{hardware} O(N) reference",
-            )
         oom_tokens = [tokens for failed_hardware, tokens, mode, _, oom in failures
                       if failed_hardware == hardware and mode == "device" and oom]
         if oom_tokens:
@@ -170,27 +142,8 @@ def main():
 
     axes[0].set_title("AF3 inference runtime scaling")
     axes[0].set_ylabel("Inference runtime (s)")
-    axes[0].text(
-        0.02,
-        0.98,
-        "O(N) references anchored at each hardware's 512-token device run",
-        transform=axes[0].transAxes,
-        va="top",
-        fontsize=8,
-        color="#555555",
-    )
     axes[1].set_title("AF3 peak GPU-memory scaling")
     axes[1].set_ylabel("Peak GPU memory (GiB)")
-    if args.family == "repeat":
-        axes[1].text(
-            0.02,
-            0.98,
-            "Translucent stairs: observed device-memory allocator plateaus",
-            transform=axes[1].transAxes,
-            va="top",
-            fontsize=8,
-            color="#555555",
-        )
     for ax in axes:
         ax.set_xlabel("Protein tokens")
         ax.grid(alpha=0.3)
@@ -202,8 +155,8 @@ def main():
     for hardware, tokens, mode, run, oom in failures:
         reason = "OOM" if oom else "other"
         print(f"failed: {hardware} {tokens} tokens ({mode}, {reason}) {run}")
-    for hardware, tokens, mode, run in running:
-        print(f"running: {hardware} {tokens} tokens ({mode}) {run}")
+    for hardware, tokens, mode, run in incomplete:
+        print(f"incomplete: {hardware} {tokens} tokens ({mode}) {run}")
 
 
 if __name__ == "__main__":

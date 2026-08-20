@@ -81,9 +81,21 @@ cleanup() {
         wait "$SAMPLER_PID" 2>/dev/null || true
     fi
 }
+
+finish_profile() {
+    local exit_status=$1
+    trap - EXIT INT TERM
+    cleanup
+    /usr/bin/python3 "$PROJECT_ROOT/scripts/profile_metadata.py" finish \
+        --metadata "$RUN_DIR/metadata.json" --time-file "$RUN_DIR/time.txt" \
+        --exit-status "$exit_status"
+    printf 'Profile directory: %s\n' "$RUN_DIR"
+    exit "$exit_status"
+}
+
 trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+trap 'finish_profile 130' INT
+trap 'finish_profile 143' TERM
 
 set +e
 LC_ALL=C /usr/bin/time -v -o "$RUN_DIR/time.txt" "${COMMAND[@]}" 2>&1 |
@@ -91,11 +103,4 @@ LC_ALL=C /usr/bin/time -v -o "$RUN_DIR/time.txt" "${COMMAND[@]}" 2>&1 |
 EXIT_STATUS=${PIPESTATUS[0]}
 set -e
 
-cleanup
-trap - EXIT
-/usr/bin/python3 "$PROJECT_ROOT/scripts/profile_metadata.py" finish \
-    --metadata "$RUN_DIR/metadata.json" --time-file "$RUN_DIR/time.txt" \
-    --exit-status "$EXIT_STATUS"
-
-printf 'Profile directory: %s\n' "$RUN_DIR"
-exit "$EXIT_STATUS"
+finish_profile "$EXIT_STATUS"

@@ -3,14 +3,14 @@
 #SBATCH --job-name=af3-real-pipeline
 #SBATCH --account=gpu_stuart.prj
 #SBATCH --partition=gpu_strubi
-#SBATCH --qos=gpu_bmrc_4hr
+#SBATCH --qos=gpu_bmrc_24hr
 #SBATCH --output=logs/af3-real-pipeline-%A_%a.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --array=0-26%2
 
 module load Python/3.11.3-GCCcore-12.3.0

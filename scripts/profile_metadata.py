@@ -113,7 +113,8 @@ def finish(args):
     metadata["end_time_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
     metadata["wall_clock_seconds"] = round(time.time() - metadata.pop("_started"), 3)
     metadata["exit_status"] = args.exit_status
-    for line in Path(args.time_file).read_text().splitlines():
+    time_file = Path(args.time_file)
+    for line in (time_file.read_text() if time_file.exists() else "").splitlines():
         if "Maximum resident set size (kbytes):" in line:
             metadata["maximum_host_rss_kb"] = int(line.rsplit(":", 1)[1])
     write(path, metadata)

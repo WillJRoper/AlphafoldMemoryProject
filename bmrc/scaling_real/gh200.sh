@@ -3,7 +3,7 @@
 #SBATCH --job-name=af3-real-gh200
 #SBATCH --account=gpu_stuart.prj
 #SBATCH --partition=gpu_gh200_bmrc
-#SBATCH --qos=gpu_bmrc_4hr
+#SBATCH --qos=gpu_bmrc_24hr
 #SBATCH --output=logs/af3-real-gh200-%A_%a.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -11,7 +11,7 @@
 #SBATCH --gres=gpu:gh200:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --array=0-26%2
 
 module purge 2>/dev/null || true
