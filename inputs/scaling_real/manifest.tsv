@@ -1,0 +1,28 @@
+target_tokens	accession	expected_length	entry_name	organism	reviewed	caveat
+250	P60174	249	TPIS_HUMAN	Homo sapiens	yes	compact enzyme
+250	A0A0H3PEK7	253	TLYA_CAMJJ	Campylobacter jejuni	yes	rRNA methyltransferase
+250	A0A0J9X285	255	HMPK_ACIB6	Acinetobacter baumannii	yes	small enzyme
+500	P10635	497	CP2D6_HUMAN	Homo sapiens	yes	membrane-associated cytochrome P450
+500	A0A0E3T3B5	503	AADH2_MALDO	Malus domestica	yes	peroxisomal enzyme
+500	A0A0H2URG7	503	GTFA_STRPN	Streptococcus pneumoniae	yes	glycosyltransferase
+1000	A0A1D8PDV7	1020	VPS34_CANAL	Candida albicans	yes	multidomain kinase
+1000	A0QP27	1013	MMPL3_MYCS2	Mycolicibacterium smegmatis	yes	multi-pass membrane transporter
+1000	A1A278	1002	MANA_BIFAA	Bifidobacterium adolescentis	yes	large carbohydrate-active enzyme
+2000	A6NHR9	2005	SMHD1_HUMAN	Homo sapiens	yes	large multidomain ATPase
+2000	A2APX8	2009	SCN1A_MOUSE	Mus musculus	yes	multi-pass sodium channel
+2000	A2AGT5	2032	CKAP5_MOUSE	Mus musculus	yes	large microtubule-associated protein
+3000	A2AJK6	2986	CHD7_MOUSE	Mus musculus	yes	chromatin remodeler with disordered regions
+3000	A2AWL7	3003	MGAP_MOUSE	Mus musculus	yes	large regulatory protein
+3000	E9Q8I9	3020	FRY_MOUSE	Mus musculus	yes	large scaffold protein
+4000	G2Q9A5	4011	MYCA_THET4	Thermothelomyces thermophilus	yes	multidomain PKS-NRPS
+4000	G4MVZ2	4034	ACE1_PYRO7	Pyricularia oryzae	yes	multidomain PKS-NRPS
+4000	O88737	3942	BSN_MOUSE	Mus musculus	yes	large scaffold with coiled-coil regions
+5000	P11716	5037	RYR1_RABIT	Oryctolagus cuniculus	yes	giant multi-pass calcium channel
+5000	A2AAE1	5005	BLTP1_MOUSE	Mus musculus	yes	bridge-like lipid transfer protein
+5000	A0A0R4I9Y1	5061	R213B_DANRE	Danio rerio	yes	large ATPase and ubiquitin ligase
+7000	Q23551	7158	UNC22_CAEEL	Caenorhabditis elegans	yes	giant repeat-rich muscle protein
+7000	A6QGY5	7031	EBHB_STAAE	Staphylococcus aureus	yes	giant repetitive surface protein
+7000	Q5CZC0	6907	FSIP2_HUMAN	Homo sapiens	yes	giant fibrous sheath protein
+10000	Q8NWQ6	9904	EBH_STAAW	Staphylococcus aureus	yes	extremely repetitive surface protein
+10000	Q8I3Z1	10061	MLRR1_PLAF7	Plasmodium falciparum	yes	giant repeat-rich Plasmodium protein
+10000	A0A8B8SSS6	9891	A0A8B8SSS6_CAMFR	Camelus ferus	no	complete unreviewed obscurin annotation
