@@ -44,8 +44,10 @@ Setup uses the images' locked dependencies and verifies `absl` and `alphafold3`
 imports:
 
 ```text
-~/.local/share/alphafold3/3.0.3/x86_64-venv
-~/.local/share/alphafold3/3.0.3/aarch64-venv
+.runtime/venvs/3.0.3/x86_64
+.runtime/venvs/3.0.3/aarch64
+.runtime/uv-cache/x86_64
+.runtime/uv-cache/aarch64
 ```
 
 Submit one complete comparison:

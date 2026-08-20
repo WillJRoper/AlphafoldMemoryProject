@@ -18,7 +18,8 @@ ROOT="$SLURM_SUBMIT_DIR"
 INPUT_JSON="$(realpath "$1")"
 SIF=/apps/singularity/alphafold3/alphafold-3.0.3-arm.sif
 MODEL=/data/belmont/alphafold3-parameters
-VENV="$HOME/.local/share/alphafold3/3.0.3/aarch64-venv"
+VENV="$ROOT/.runtime/venvs/3.0.3/aarch64"
+UV_CACHE="$ROOT/.runtime/uv-cache/aarch64"
 RUN_DIR="$ROOT/profiles/gh200-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/gh200-$SLURM_JOB_ID"
 mkdir -p "$VENV"
@@ -28,8 +29,9 @@ mkdir -p "$VENV"
 }
 
 COMMAND=(
-    apptainer run --nv --bind "$VENV:/alphafold3_venv"
-    --bind "$ROOT:/root/af_inout" --bind "$MODEL:/root/models" "$SIF"
+    apptainer run --nv --env UV_CACHE_DIR=/uv-cache --bind "$VENV:/alphafold3_venv"
+    --bind "$UV_CACHE:/uv-cache" --bind "$ROOT:/root/af_inout"
+    --bind "$MODEL:/root/models" "$SIF"
     --json_path="/root/af_inout/${INPUT_JSON#"$ROOT/"}"
     --output_dir="$CONTAINER_RUN_DIR/output"
     --model_dir=/root/models
