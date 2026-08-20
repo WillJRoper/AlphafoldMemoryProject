@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Data pipeline is CPU-only, but gpu_bmrc_4hr requires a GPU GRES and Belmont
-# storage is only mounted on GPU partitions. Reserve the least costly GPU class;
+# storage is only mounted on GPU partitions. Reserve any GPU to satisfy QOS;
 # AF3 still runs without --nv and does not use it.
 #SBATCH --job-name=af3-data-pipeline
 #SBATCH --account=gpu_stuart.prj
@@ -10,7 +10,7 @@
 #SBATCH --output=logs/af3-data-pipeline-%j.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:v100-sxm2-16gb:1
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=04:00:00
 
