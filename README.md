@@ -103,3 +103,39 @@ Validate inference output:
 ```bash
 python3 scripts/validate_profile.py profiles/RUN
 ```
+
+## Token scaling
+
+Scaling jobs use one synthetic single-chain protein with fixed composition,
+query-only MSA, no templates, and exact token counts:
+
+```text
+128 256 512 768 1024 1536 2048 2560 3072 4096 5120 6144 7000
+```
+
+Each array task is an independent profiled inference run. Start with device-only
+memory and retain failures as the observed capacity boundary:
+
+```bash
+bash bmrc/scaling/submit.sh device
+bash arc/scaling/submit.sh device
+```
+
+Run a second, independent sweep with unified memory enabled at every size:
+
+```bash
+bash bmrc/scaling/submit.sh unified
+bash arc/scaling/submit.sh unified
+```
+
+Unified sweeps request 320 GB host memory; device-only sweeps retain their
+smaller requests. Generate aggregate runtime and peak-GPU-memory curves with:
+
+```bash
+python3 scripts/plot_scaling.py profiles
+```
+
+Profile names contain `device` or `unified`, and metadata records the effective
+unified-memory setting. The plot draws a hardware-colored vertical dotted line
+at the first device-only OOM. Failed profiles are retained for diagnostics,
+excluded from scaling curves, and reported on stdout.

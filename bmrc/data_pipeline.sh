@@ -40,4 +40,4 @@ COMMAND=(
 )
 
 exec "$ROOT/scripts/profile_command.sh" "$RUN_DIR" data-pipeline "$INPUT_JSON" \
-    "$SIF" 3.0.3 false -- "${COMMAND[@]}"
+    "$SIF" 3.0.3 false device -- "${COMMAND[@]}"

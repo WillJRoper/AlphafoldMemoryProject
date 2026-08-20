@@ -3,11 +3,11 @@
 set -euo pipefail
 
 usage() {
-    printf 'usage: %s RUN_DIR STAGE INPUT_JSON SIF AF_VERSION GPU(true|false) -- COMMAND...\n' "$0" >&2
+    printf 'usage: %s RUN_DIR STAGE INPUT_JSON SIF AF_VERSION GPU(true|false) MEMORY(device|unified) -- COMMAND...\n' "$0" >&2
     exit 2
 }
 
-[[ $# -ge 8 && "$7" == -- ]] || usage
+[[ $# -ge 9 && "$8" == -- ]] || usage
 
 RUN_DIR=$1
 STAGE=$2
@@ -15,10 +15,12 @@ INPUT_JSON=$3
 SIF=$4
 AF_VERSION=$5
 HAS_GPU=$6
-shift 7
+MEMORY_MODE=$7
+shift 8
 COMMAND=("$@")
 
 [[ "$HAS_GPU" == true || "$HAS_GPU" == false ]] || usage
+[[ "$MEMORY_MODE" == device || "$MEMORY_MODE" == unified ]] || usage
 
 PROJECT_ROOT="${SLURM_SUBMIT_DIR:?submit from repository root}"
 PROFILE_MODE=memory_characterisation
@@ -28,8 +30,13 @@ mkdir -p "$RUN_DIR/output"
 # Explicit profiling defaults. Submission scripts can later expose alternatives
 # without changing command capture, sampling, or metadata handling.
 export APPTAINERENV_XLA_PYTHON_CLIENT_PREALLOCATE=false
-export APPTAINERENV_TF_FORCE_UNIFIED_MEMORY=false
-export APPTAINERENV_XLA_CLIENT_MEM_FRACTION=0.95
+if [[ "$MEMORY_MODE" == unified ]]; then
+    export APPTAINERENV_TF_FORCE_UNIFIED_MEMORY=true
+    export APPTAINERENV_XLA_CLIENT_MEM_FRACTION=3.2
+else
+    export APPTAINERENV_TF_FORCE_UNIFIED_MEMORY=false
+    export APPTAINERENV_XLA_CLIENT_MEM_FRACTION=0.95
+fi
 
 GPU_ARGS=()
 if [[ "$HAS_GPU" == true ]]; then
