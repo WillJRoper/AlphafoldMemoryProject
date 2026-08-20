@@ -39,6 +39,9 @@ sbatch bmrc/setup_x86_environment.sh
 sbatch bmrc/setup_arm_environment.sh
 ```
 
+BMRC inference scripts explicitly read the model file before starting Apptainer.
+This triggers the Belmont autofs mount and verifies access before the bind.
+
 Setup uses the images' locked dependencies and verifies `absl` and `alphafold3`
 imports:
 

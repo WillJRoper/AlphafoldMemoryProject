@@ -34,6 +34,7 @@ UV_CACHE="$ROOT/.runtime/uv-cache/aarch64"
 RUN_DIR="$ROOT/profiles/scaling-real-bmrc-gh200-${TARGET}-${ACCESSION}-${MEMORY_MODE}-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/${RUN_DIR##*/}"
 
+[[ -r "$MODEL/af3.bin.zst" ]] || { printf 'error: model parameters unavailable at %s\n' "$MODEL" >&2; exit 2; }
 COMMAND=(
     apptainer run --nv --env UV_CACHE_DIR=/uv-cache --bind "$VENV:/alphafold3_venv"
     --bind "$UV_CACHE:/uv-cache" --bind "$ROOT:/root/af_inout"

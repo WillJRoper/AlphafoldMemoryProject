@@ -30,6 +30,7 @@ UV_CACHE="$ROOT/.runtime/uv-cache/x86_64"
 RUN_DIR="$ROOT/profiles/scaling-repeat-bmrc-a100-${TOKEN_COUNT}-${MEMORY_MODE}-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/${RUN_DIR##*/}"
 
+[[ -r "$MODEL/af3.bin.zst" ]] || { printf 'error: model parameters unavailable at %s\n' "$MODEL" >&2; exit 2; }
 [[ -f "$VENV/pyvenv.cfg" ]] || { printf 'error: run bmrc/setup_x86_environment.sh first\n' >&2; exit 2; }
 python3 "$ROOT/scripts/generate_scaling_input.py" "$TOKEN_COUNT" "$INPUT_JSON"
 

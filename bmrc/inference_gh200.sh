@@ -23,6 +23,7 @@ VENV="$ROOT/.runtime/venvs/3.0.3/aarch64"
 UV_CACHE="$ROOT/.runtime/uv-cache/aarch64"
 RUN_DIR="$ROOT/profiles/gh200-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/gh200-$SLURM_JOB_ID"
+[[ -r "$MODEL/af3.bin.zst" ]] || { printf 'error: model parameters unavailable at %s\n' "$MODEL" >&2; exit 2; }
 mkdir -p "$VENV"
 [[ -f "$VENV/pyvenv.cfg" ]] || {
     printf 'error: run sbatch bmrc/setup_arm_environment.sh first\n' >&2
