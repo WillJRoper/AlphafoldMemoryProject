@@ -26,22 +26,22 @@ GPU samples around the supplied command.
 
 ## BMRC
 
-BMRC supplies matching AF3 3.0.3 images:
+BMRC comparisons use matching AF3 3.0.3 images for x86_64 and ARM64:
 
 ```text
 /apps/singularity/alphafold3/alphafold-3.0.3.sif
 /apps/singularity/alphafold3/alphafold-3.0.3-arm.sif
 ```
 
-Initialize writable Python environments once, before profiling:
+Initialize both architecture-specific writable environments once:
 
 ```bash
 sbatch bmrc/setup_x86_environment.sh
 sbatch bmrc/setup_arm_environment.sh
 ```
 
-The setup jobs use the image's locked dependencies and verify `absl` and
-`alphafold3` imports. Profiling scripts bind separate persistent environments:
+Setup uses the images' locked dependencies and verifies `absl` and `alphafold3`
+imports:
 
 ```text
 ~/.local/share/alphafold3/3.0.3/x86_64-venv
@@ -74,8 +74,8 @@ bash bmrc/submit_all.sh profiles/data-pipeline-JOB_ID/output/JOB/JOB_data.json
 
 The V100 script uses XLA flash attention because AF3's Triton/cuDNN paths
 require Ampere or newer. Unified memory and JAX preallocation are disabled in
-the profiler defaults for clean memory measurements. Each GPU class has its own
-persistent JAX compilation cache; compare second runs for warm-cache inference.
+the profiler defaults for clean memory measurements.
+
 
 ## ARC
 

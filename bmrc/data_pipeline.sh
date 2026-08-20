@@ -21,15 +21,14 @@ DB=/data/belmont/alphafold-3.0.1-20250212
 VENV="$HOME/.local/share/alphafold3/3.0.3/x86_64-venv"
 RUN_DIR="$ROOT/profiles/data-pipeline-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/data-pipeline-$SLURM_JOB_ID"
-mkdir -p "$VENV"
 [[ -f "$VENV/pyvenv.cfg" ]] || {
     printf 'error: run sbatch bmrc/setup_x86_environment.sh first\n' >&2
     exit 2
 }
 
 COMMAND=(
-    apptainer run --bind "$VENV:/alphafold3_venv"
-    --bind "$ROOT:/root/af_inout" --bind "$DB:/root/public_databases" "$SIF"
+    apptainer run --bind "$VENV:/alphafold3_venv" --bind "$ROOT:/root/af_inout"
+    --bind "$DB:/root/public_databases" "$SIF"
     --json_path="/root/af_inout/${INPUT_JSON#"$ROOT/"}"
     --output_dir="$CONTAINER_RUN_DIR/output"
     --db_dir=/root/public_databases

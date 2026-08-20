@@ -21,20 +21,17 @@ MODEL=/data/belmont/alphafold3-parameters
 VENV="$HOME/.local/share/alphafold3/3.0.3/x86_64-venv"
 RUN_DIR="$ROOT/profiles/a100-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/a100-$SLURM_JOB_ID"
-CACHE="$HOME/.cache/alphafold3/a100"
-mkdir -p "$CACHE" "$VENV"
 [[ -f "$VENV/pyvenv.cfg" ]] || {
     printf 'error: run sbatch bmrc/setup_x86_environment.sh first\n' >&2
     exit 2
 }
 
 COMMAND=(
-    apptainer run --nv --bind "$VENV:/alphafold3_venv"
-    --bind "$ROOT:/root/af_inout" --bind "$MODEL:/root/models" "$SIF"
+    apptainer run --nv --bind "$VENV:/alphafold3_venv" --bind "$ROOT:/root/af_inout"
+    --bind "$MODEL:/root/models" "$SIF"
     --json_path="/root/af_inout/${INPUT_JSON#"$ROOT/"}"
     --output_dir="$CONTAINER_RUN_DIR/output"
     --model_dir=/root/models
-    --jax_compilation_cache_dir="$CACHE"
     --run_data_pipeline=false
     --run_inference=true
 )
