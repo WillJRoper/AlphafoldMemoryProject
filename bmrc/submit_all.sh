@@ -19,6 +19,11 @@ if [[ "$1" == --after ]]; then
 fi
 DATA_JSON="$(realpath -m "$1")"
 
+STATUS=0
 for gpu in a100 v100 gh200; do
-    sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/inference_${gpu}.sh" "$DATA_JSON"
+    if ! sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/inference_${gpu}.sh" "$DATA_JSON"; then
+        printf 'error: failed to submit %s inference\n' "$gpu" >&2
+        STATUS=1
+    fi
 done
+exit "$STATUS"

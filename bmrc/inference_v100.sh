@@ -7,7 +7,8 @@
 #SBATCH --output=logs/af3-v100-%j.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:v100-sxm2-16gb:1
+#SBATCH --gres=gpu:1
+#SBATCH --constraint=v100
 #SBATCH --cpus-per-task=16
 #SBATCH --time=04:00:00
 
