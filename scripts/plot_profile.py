@@ -368,7 +368,10 @@ def parse_time_txt(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
+    parser.add_argument("--output-dir", type=Path, default=Path("plots"))
     args = parser.parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    prefix = args.run_dir.name
 
     gpu_csv = args.run_dir / "gpu.csv"
     if not gpu_csv.exists():
@@ -393,17 +396,20 @@ def main():
         if not wall_seconds and (args.run_dir / "time.txt").exists():
             wall_seconds = time_seconds(parse_time_txt(args.run_dir / "time.txt").get(
                 "Elapsed (wall clock) time (h:mm:ss or m:ss)", "0")) or 0
-        plot_data_pipeline(args.run_dir, args.run_dir / "pipeline_diagnostics.png",
+        output = args.output_dir / f"{prefix}_pipeline_diagnostics.png"
+        plot_data_pipeline(args.run_dir, output,
                            title, wall_seconds)
         print(f"Run: {args.run_dir.name} ({stage})")
-        print(f"Pipeline diagnostics: {args.run_dir / 'pipeline_diagnostics.png'}")
+        print(f"Pipeline diagnostics: {output}")
         return
 
     if df.empty:
         raise SystemExit("gpu.csv contains no samples for GPU stage")
 
-    plot_timeseries(df, args.run_dir / "gpu_timeseries.png", title)
-    plot_diagnostics(df, args.run_dir / "gpu_diagnostics.png", title)
+    timeseries = args.output_dir / f"{prefix}_gpu_timeseries.png"
+    diagnostics = args.output_dir / f"{prefix}_gpu_diagnostics.png"
+    plot_timeseries(df, timeseries, title)
+    plot_diagnostics(df, diagnostics, title)
 
     stats = parse_time_txt(args.run_dir / "time.txt")
     win = active_window(df)
@@ -424,8 +430,7 @@ def main():
           f"peak {df['power_draw_w'].max():.0f} W")
     if "Maximum resident set size (kbytes)" in stats:
         print(f"Host max RSS: {int(stats['Maximum resident set size (kbytes)']) / 1048576:.2f} GiB")
-    print(f"Plots: {args.run_dir / 'gpu_timeseries.png'}, "
-          f"{args.run_dir / 'gpu_diagnostics.png'}")
+    print(f"Plots: {timeseries}, {diagnostics}")
 
 
 if __name__ == "__main__":

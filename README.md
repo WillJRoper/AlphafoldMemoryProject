@@ -95,6 +95,8 @@ sbatch arc/inference_a100.sh profiles/data-pipeline-JOB_ID/output/JOB/JOB_data.j
 
 Each run writes a self-contained directory under `profiles/` containing
 metadata, GNU time output, AF3 logs/output, and GPU samples when applicable.
+Generated figures are written beneath `plots/`; per-run filenames include the
+full profile directory name to prevent collisions.
 
 Generate stage-appropriate plots:
 

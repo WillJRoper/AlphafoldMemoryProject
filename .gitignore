@@ -21,6 +21,9 @@ outputs/*
 profiles/*
 !profiles/.gitkeep
 
+plots/*
+!plots/.gitkeep
+
 
 # -----------------------------------------------------------------------------
 # Temporary / log files
