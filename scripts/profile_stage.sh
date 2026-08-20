@@ -80,8 +80,10 @@ if [[ "$AF3_STAGE" == data-pipeline ]]; then
     COMMAND=(apptainer run "${BIND_ARGS[@]}" "$AF3_SIF"
              "${COMMAND_ARGS[@]}" --run_data_pipeline=true --run_inference=false "$@")
 else
+    AF3_JAX_CACHE_DIR="${AF3_JAX_CACHE_DIR:-$HOME/.cache}"
+    mkdir -p "$AF3_JAX_CACHE_DIR"
     COMMAND=(apptainer run --nv "${BIND_ARGS[@]}" "$AF3_SIF"
-             "${COMMAND_ARGS[@]}" --jax_compilation_cache_dir="${AF3_JAX_CACHE_DIR:-$HOME/.cache}"
+             "${COMMAND_ARGS[@]}" --jax_compilation_cache_dir="$AF3_JAX_CACHE_DIR"
              --run_data_pipeline=false --run_inference=true "$@")
 fi
 

@@ -94,6 +94,14 @@ Stage: final
     set -eu
     export DEBIAN_FRONTEND=noninteractive
 
+    # BMRC's outbound proxy rejects plain HTTP Ubuntu mirrors. NVIDIA's base
+    # image still configures those mirrors with HTTP, so upgrade them to HTTPS.
+    sed -i \
+        -e 's|http://archive.ubuntu.com|https://archive.ubuntu.com|g' \
+        -e 's|http://security.ubuntu.com|https://security.ubuntu.com|g' \
+        /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null \
+        || true
+
     apt-get update --quiet
     apt-get install --yes --quiet \
         python3.12 \
@@ -196,4 +204,3 @@ Stage: final
     /alphafold3_venv/bin/python3 --version
     /hmmer/bin/jackhmmer -h >/dev/null
     /alphafold3_venv/bin/python3 -c 'import alphafold3'
-

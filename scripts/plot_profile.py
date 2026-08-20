@@ -18,6 +18,9 @@ GIB = 1024.0
 
 def load_gpu_csv(path):
     df = pd.read_csv(path, skipinitialspace=True)
+    if df.empty:
+        df["elapsed_min"] = pd.Series(dtype=float)
+        return df
     time = pd.to_datetime(df["timestamp"], format=TIME_FORMAT)
     df["elapsed_min"] = (time - time.iloc[0]).dt.total_seconds() / 60.0
     return df
@@ -82,6 +85,83 @@ def memory_summary(df):
     baseline = df.loc[df["utilization_gpu_percent"] <= 20, "memory_used_mib"].median()
     peak = df["memory_used_mib"].max()
     return baseline, peak, peak - baseline
+
+
+def phase_durations(run_dir, wall_seconds):
+    phases = parse_phase_durations(run_dir / "alphafold.log")
+    known_seconds = sum(phases.values())
+    if known_seconds < wall_seconds:
+        phases["startup / finalization"] = wall_seconds - known_seconds
+    return phases
+
+
+def plot_data_pipeline(run_dir, out, title, wall_seconds):
+    """Plot CPU/phase diagnostics for a run that intentionally has no GPU samples."""
+    phases = phase_durations(run_dir, wall_seconds)
+    time_stats = parse_time_txt(run_dir / "time.txt")
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), layout="constrained")
+
+    ax = axes[0, 0]
+    left = 0.0
+    colors = {"data pipeline": "#4c78a8", "startup / finalization": "#9d9d9d"}
+    for name, seconds in phases.items():
+        ax.barh(["wall clock"], [seconds / 60], left=left / 60,
+                color=colors.get(name, "#9d9d9d"), label=name)
+        if seconds / 60 > 0.15:
+            ax.text(left / 60 + seconds / 120, 0, f"{name}\n{seconds / 60:.1f} min",
+                    ha="center", va="center", fontsize=10, color="white")
+        left += seconds
+    ax.set_xlim(0, wall_seconds / 60)
+    ax.set_xlabel("Elapsed wall time (min)")
+    ax.set_title("Data-pipeline phase timing")
+    ax.legend(fontsize=9, loc="upper right")
+    ax.grid(axis="x", alpha=0.3)
+
+    ax = axes[0, 1]
+    ax.axis("off")
+    rows = []
+    for key, label in (
+        ("User time (seconds)", "user CPU"),
+        ("System time (seconds)", "system CPU"),
+        ("Percent of CPU this job got", "CPU utilisation"),
+        ("Maximum resident set size (kbytes)", "maximum RSS"),
+        ("File system inputs", "filesystem input"),
+        ("Major (requiring I/O) page faults", "major faults"),
+        ("Minor (reclaiming a frame) page faults", "minor faults"),
+    ):
+        if key in time_stats:
+            value = time_stats[key]
+            if label == "maximum RSS":
+                value = f"{time_seconds(value) / 1048576:.2f} GiB"
+            rows.append((label, value))
+    ax.table(cellText=rows or [("n/a", "n/a")], colLabels=("Host metric", "Value"),
+             loc="center", cellLoc="left", colWidths=(0.6, 0.4))
+    ax.set_title("CPU and I/O summary", pad=12)
+
+    ax = axes[1, 0]
+    ax.axis("off")
+    ax.text(0, 1, "GPU sampling intentionally disabled\n\n"
+            "This stage binds reference databases and runs\n"
+            "CPU-side sequence/template searches.\n\n"
+            "Submit matching *_data.json to inference stage\n"
+            "for isolated GPU profiling.", va="top", fontsize=11,
+            transform=ax.transAxes)
+    ax.set_title("Stage interpretation", pad=12)
+
+    ax = axes[1, 1]
+    ax.axis("off")
+    ax.text(0, 1, "\n".join([
+        f"wall: {wall_seconds / 60:.1f} min",
+        f"data pipeline: {phases.get('data pipeline', 0) / 60:.1f} min",
+        f"startup/finalization: {phases.get('startup / finalization', 0) / 60:.1f} min",
+        "GPU samples: none (expected)",
+        f"log: {run_dir / 'alphafold.log'}",
+    ]), va="top", fontsize=10, family="monospace", transform=ax.transAxes)
+    ax.set_title("Pipeline summary", pad=12)
+
+    fig.suptitle(title, fontsize=12)
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
 
 
 def plot_timeseries(df, out, title):
@@ -156,12 +236,9 @@ def plot_diagnostics(df, out, title):
     util = df["utilization_gpu_percent"]
     inference = inference_slice(df)
     baseline, peak, extra = memory_summary(df)
-    phases = parse_phase_durations(Path(df.attrs["run_dir"]) / "alphafold.log") \
-        if "run_dir" in df.attrs else {}
     total_seconds = total_min(df) * 60
-    known_seconds = sum(phases.values())
-    if known_seconds < total_seconds:
-        phases["startup / finalization"] = total_seconds - known_seconds
+    phases = phase_durations(Path(df.attrs["run_dir"]), total_seconds) \
+        if "run_dir" in df.attrs else {}
 
     fig, axes = plt.subplots(3, 2, figsize=(13, 13), layout="constrained")
 
@@ -180,7 +257,8 @@ def plot_diagnostics(df, out, title):
     ax.set_xlim(0, total_seconds / 60)
     ax.set_xlabel("Elapsed wall time (min)")
     ax.set_title("AF3 phase timing")
-    ax.legend(fontsize=8, loc="upper right")
+    if phases:
+        ax.legend(fontsize=8, loc="upper right")
     ax.grid(axis="x", alpha=0.3)
 
     # Occupancy is more readable than a log-scaled histogram for this profile.
@@ -295,21 +373,34 @@ def main():
     gpu_csv = args.run_dir / "gpu.csv"
     if not gpu_csv.exists():
         raise SystemExit(f"{gpu_csv} not found (data-pipeline runs record no GPU data)")
-    df = load_gpu_csv(gpu_csv)
-    if df.empty:
-        raise SystemExit("gpu.csv contains no samples; nothing to plot")
-    df.attrs["run_dir"] = str(args.run_dir)
 
     metadata = json.loads((args.run_dir / "metadata.json").read_text())
+    profiling = metadata.get("profiling", {})
+    stage = profiling.get("stage", "unknown")
+    df = load_gpu_csv(gpu_csv)
+    df.attrs["run_dir"] = str(args.run_dir)
     host = metadata.get("host", {})
     gpus = ", ".join(f"{g.get('name', '?')} ({g.get('memory_total_mib', '?')} MiB)"
                      for g in host.get("gpus", [])) or "no GPU"
-    profiling = metadata.get("profiling", {})
     title = (
         f"{args.run_dir.name}  AF3 {metadata.get('alphafold', {}).get('version', '?')}  "
         f"{profiling.get('mode', '?')}/{profiling.get('stage', '?')}  "
         f"{gpus}  {host.get('hostname', '?')}"
     )
+
+    if stage == "data-pipeline":
+        wall_seconds = float(metadata.get("wall_clock_seconds", 0))
+        if not wall_seconds and (args.run_dir / "time.txt").exists():
+            wall_seconds = time_seconds(parse_time_txt(args.run_dir / "time.txt").get(
+                "Elapsed (wall clock) time (h:mm:ss or m:ss)", "0")) or 0
+        plot_data_pipeline(args.run_dir, args.run_dir / "pipeline_diagnostics.png",
+                           title, wall_seconds)
+        print(f"Run: {args.run_dir.name} ({stage})")
+        print(f"Pipeline diagnostics: {args.run_dir / 'pipeline_diagnostics.png'}")
+        return
+
+    if df.empty:
+        raise SystemExit("gpu.csv contains no samples for GPU stage")
 
     plot_timeseries(df, args.run_dir / "gpu_timeseries.png", title)
     plot_diagnostics(df, args.run_dir / "gpu_diagnostics.png", title)

@@ -8,6 +8,7 @@ from plot_profile import (
     memory_exceedance,
     parse_phase_durations,
     model_load_at,
+    plot_data_pipeline,
     plot_diagnostics,
     plot_timeseries,
 )
@@ -34,6 +35,13 @@ class PlotProfileTest(unittest.TestCase):
         self.assertEqual(df["memory_used_mib"].tolist(), [0, 10240, 20480])
         self.assertAlmostEqual(df["elapsed_min"].iloc[0], 0)
         self.assertAlmostEqual(df["elapsed_min"].iloc[2], 20.0 / 60.0, places=3)
+
+    def test_load_gpu_csv_accepts_header_only_pipeline_sample(self):
+        path = Path(self.tmp.name) / "pipeline_gpu.csv"
+        path.write_text(CSV.splitlines()[0] + "\n")
+        df = load_gpu_csv(path)
+        self.assertTrue(df.empty)
+        self.assertIn("elapsed_min", df)
 
     def test_active_window_uses_utilization(self):
         df = load_gpu_csv(self.csv)
@@ -78,6 +86,14 @@ class PlotProfileTest(unittest.TestCase):
         plot_diagnostics(df, Path(self.tmp.name) / "diag.png", title)
         self.assertTrue((Path(self.tmp.name) / "ts.png").stat().st_size > 0)
         self.assertTrue((Path(self.tmp.name) / "diag.png").stat().st_size > 0)
+
+    def test_pipeline_plot_is_written_without_gpu_samples(self):
+        log = Path(self.tmp.name) / "alphafold.log"
+        log.write_text("Running data pipeline for chain A took 50 seconds\n")
+        (Path(self.tmp.name) / "time.txt").write_text("")
+        out = Path(self.tmp.name) / "pipeline.png"
+        plot_data_pipeline(Path(self.tmp.name), out, "pipeline", 60)
+        self.assertTrue(out.stat().st_size > 0)
 
 
 if __name__ == "__main__":

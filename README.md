@@ -8,8 +8,10 @@ AlphaFold installation and Slurm configuration (account/partition/GRES syntax,
 and in some cases a different container invocation model entirely):
 
 ```text
-bmrc/inference/profile_alphafold.sh       BMRC GPU inference
 bmrc/data_pipeline/profile_alphafold.sh  BMRC CPU data pipeline
+bmrc/inference/a100/profile_alphafold.sh BMRC A100 inference
+bmrc/inference/v100/profile_alphafold.sh BMRC V100 inference
+bmrc/inference/gh200/profile_alphafold.sh BMRC GH200 inference
 arc/inference/profile_alphafold.sh        ARC GPU inference
 arc/data_pipeline/profile_alphafold.sh   ARC CPU data pipeline
 ```
@@ -27,24 +29,30 @@ builds, source changes, or forks:
 git submodule update --init --recursive
 ```
 
-The optional ARM64 container definition is `containers/alphafold3-v3.0.4.def`:
+The definition builds for the architecture of its build node when custom images
+are needed:
 
 ```bash
+apptainer build images/alphafold3-v3.0.4-x86_64.sif \
+  containers/alphafold3-v3.0.4.def
 apptainer build images/alphafold3-v3.0.4-arm64.sif \
   containers/alphafold3-v3.0.4.def
 ```
 
 ### BMRC
 
-Shared defaults used by BMRC wrappers:
+BMRC comparison wrappers use matching AF3 3.0.3 images supplied by BMRC, plus
+shared model parameters and databases:
 
 ```text
-/apps/singularity/alphafold3/alphafold-3.0.1-20250210.sif
+/apps/singularity/alphafold3/alphafold-3.0.3.sif
+/apps/singularity/alphafold3/alphafold-3.0.3-arm.sif
 /data/belmont/alphafold3-parameters
 /data/belmont/alphafold-3.0.1-20250212
 ```
 
-Belmont storage is available only from relevant login and `gpu_strubi` nodes.
+Belmont storage is available to these jobs from `gpu_strubi` and
+`gpu_gh200_bmrc` nodes.
 
 ### ARC
 
@@ -69,15 +77,6 @@ A100 GPU.
 
 ## Profiling
 
-Submit a complete run with the default `memory_characterisation` mode, which
-disables JAX GPU-memory preallocation to give a more representative device-memory
-time series:
-
-```bash
-sbatch bmrc/inference/profile_alphafold.sh inputs/lysozyme_1lyz.json
-sbatch arc/inference/profile_alphafold.sh inputs/lysozyme_1lyz.json
-```
-
 Run stages separately when measuring them independently. Submit data pipeline
 first using the original input; it writes AF3's feature-enriched `*_data.json`
 inside its profile output. Submit inference using that generated JSON:
@@ -88,20 +87,35 @@ sbatch arc/inference/profile_alphafold.sh \
   profiles/DATA_RUN/output/lysozyme_1lyz/lysozyme_1lyz_data.json
 ```
 
-The BMRC commands use the same pattern under `bmrc/`. Inference binds model
-parameters only; data pipeline binds databases only.
+BMRC comparison uses the generated data JSON once for all three GPU jobs:
+
+```bash
+sbatch bmrc/data_pipeline/profile_alphafold.sh inputs/lysozyme_1lyz.json
+bash bmrc/inference/submit_all.sh \
+  profiles/DATA_RUN/output/lysozyme_1lyz/lysozyme_1lyz_data.json
+```
+
+`submit_all.sh` submits A100 80GB, V100 16GB, and GH200 jobs. V100 uses XLA
+flash attention because AF3's Triton/cuDNN flash-attention paths require Ampere
+or newer. Inference binds model parameters only; data pipeline binds databases
+only. Each GPU class has a separate persistent JAX compilation cache. The first
+run for a new token bucket is a cold-cache measurement; compare second runs for
+steady-state inference, or clear all three cache directories when comparing
+cold compilation plus inference.
 
 Set `PROFILE_MODE=baseline` explicitly to retain JAX preallocation:
 
 ```bash
 sbatch --export=ALL,PROFILE_MODE=baseline \
-  bmrc/inference/profile_alphafold.sh inputs/lysozyme_1lyz.json
+  bmrc/inference/a100/profile_alphafold.sh \
+  profiles/DATA_RUN/output/lysozyme_1lyz/lysozyme_1lyz_data.json
 ```
 
 Unified host memory (`TF_FORCE_UNIFIED_MEMORY=true`, with a larger
-`XLA_CLIENT_MEM_FRACTION`) is supported by both shared installations but is not
-part of either profiling mode; enable it explicitly for memory-constrained
-hosts via:
+`XLA_CLIENT_MEM_FRACTION`) is disabled by default in all comparison scripts.
+Leave it disabled when inputs fit device memory: enabling oversubscription can
+change allocation behavior and may add migration overhead even when runtime is
+often similar. Enable it only for memory-constrained inputs via:
 
 ```bash
 sbatch --export=ALL,AF3_UNIFIED_MEMORY=true ...
