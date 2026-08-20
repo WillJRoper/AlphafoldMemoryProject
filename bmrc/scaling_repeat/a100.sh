@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-#SBATCH --job-name=af3-scale-gh200
+#SBATCH --job-name=af3-scale-a100
 #SBATCH --account=gpu_stuart.prj
-#SBATCH --partition=gpu_gh200_bmrc
+#SBATCH --partition=gpu_strubi
 #SBATCH --qos=gpu_bmrc_4hr
-#SBATCH --output=logs/af3-scale-gh200-%A_%a.log
+#SBATCH --output=logs/af3-scale-a100-%A_%a.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gres=gpu:gh200:1
+#SBATCH --gres=gpu:a100-pcie-80gb:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
@@ -23,14 +23,14 @@ TOKEN_COUNT=${TOKENS[$SLURM_ARRAY_TASK_ID]}
 
 ROOT="$SLURM_SUBMIT_DIR"
 INPUT_JSON="$ROOT/.runtime/scaling/inputs/scaling_${TOKEN_COUNT}.json"
-SIF=/apps/singularity/alphafold3/alphafold-3.0.3-arm.sif
+SIF=/apps/singularity/alphafold3/alphafold-3.0.3.sif
 MODEL=/data/belmont/alphafold3-parameters
-VENV="$ROOT/.runtime/venvs/3.0.3/aarch64"
-UV_CACHE="$ROOT/.runtime/uv-cache/aarch64"
-RUN_DIR="$ROOT/profiles/scaling-bmrc-gh200-${TOKEN_COUNT}-${MEMORY_MODE}-$SLURM_JOB_ID"
+VENV="$ROOT/.runtime/venvs/3.0.3/x86_64"
+UV_CACHE="$ROOT/.runtime/uv-cache/x86_64"
+RUN_DIR="$ROOT/profiles/scaling-repeat-bmrc-a100-${TOKEN_COUNT}-${MEMORY_MODE}-$SLURM_JOB_ID"
 CONTAINER_RUN_DIR="/root/af_inout/profiles/${RUN_DIR##*/}"
 
-[[ -f "$VENV/pyvenv.cfg" ]] || { printf 'error: run bmrc/setup_arm_environment.sh first\n' >&2; exit 2; }
+[[ -f "$VENV/pyvenv.cfg" ]] || { printf 'error: run bmrc/setup_x86_environment.sh first\n' >&2; exit 2; }
 python3 "$ROOT/scripts/generate_scaling_input.py" "$TOKEN_COUNT" "$INPUT_JSON"
 
 COMMAND=(

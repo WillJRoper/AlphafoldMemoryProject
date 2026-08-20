@@ -17,8 +17,6 @@ done
 ((${#INDICES[@]})) || { printf 'error: no token counts >= %s\n' "$FROM" >&2; exit 2; }
 ARRAY=$(IFS=,; printf '%s' "${INDICES[*]}")
 ROOT="$(git rev-parse --show-toplevel)"
-SBATCH_ARGS=(--chdir="$ROOT" --array="$ARRAY%2")
+SBATCH_ARGS=(--clusters=htc --chdir="$ROOT" --array="$ARRAY%2")
 [[ "$MODE" == unified ]] && SBATCH_ARGS+=(--mem=320G)
-
-sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/scaling/a100.sh" "$MODE"
-sbatch "${SBATCH_ARGS[@]}" "$ROOT/bmrc/scaling/gh200.sh" "$MODE"
+sbatch "${SBATCH_ARGS[@]}" "$ROOT/arc/scaling_repeat/a100.sh" "$MODE"

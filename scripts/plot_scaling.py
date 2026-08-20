@@ -20,16 +20,31 @@ def inference_seconds(log, fallback):
     return float(match.group(1)) if match else float(fallback)
 
 
-def collect_profiles(root):
+def collect_profiles(root, family="repeat"):
     records = []
     failures = []
-    pattern = re.compile(r"scaling-(bmrc|arc)-(a100|gh200)-(\d+)-(device|unified)-")
+    if family == "real":
+        pattern = re.compile(
+            r"scaling-real-(bmrc|arc)-(a100|gh200)-(\d+)-([A-Z0-9]+)-(device|unified)-"
+        )
+    else:
+        pattern = re.compile(
+            r"scaling-(?:repeat-)?(bmrc|arc)-(a100|gh200)-(\d+)-(device|unified)-"
+        )
     for metadata_path in root.glob("*/metadata.json"):
         metadata = json.loads(metadata_path.read_text())
         match = pattern.match(metadata.get("run_id", metadata_path.parent.name))
         if not match:
             continue
-        site, gpu, tokens, mode = match.groups()
+        if family == "real":
+            site, gpu, target, accession, mode = match.groups()
+            tokens = metadata.get("input", {}).get("jobs", [{}])[0].get(
+                "polymer_residues", int(target)
+            )
+        else:
+            site, gpu, target, mode = match.groups()
+            accession = "repeat"
+            tokens = int(target)
         label = f"{site.upper()} {gpu.upper()}"
         if metadata.get("status") != "completed" or metadata.get("exit_status") != 0:
             log_path = metadata_path.parent / "alphafold.log"
@@ -39,17 +54,19 @@ def collect_profiles(root):
                 log,
                 re.IGNORECASE,
             ))
-            failures.append((label, int(tokens), mode, metadata_path.parent.name, oom))
+            failures.append((label, int(target), mode, metadata_path.parent.name, oom))
             continue
         gpu_csv = metadata_path.parent / "gpu.csv"
         samples = pd.read_csv(gpu_csv, skipinitialspace=True)
         if samples.empty:
-            failures.append((label, int(tokens), mode, metadata_path.parent.name, False))
+            failures.append((label, int(target), mode, metadata_path.parent.name, False))
             continue
         log = (metadata_path.parent / "alphafold.log").read_text()
         records.append({
             "hardware": label,
             "tokens": int(tokens),
+            "target": int(target),
+            "accession": accession,
             "mode": mode,
             "runtime_s": inference_seconds(log, metadata["wall_clock_seconds"]),
             "peak_memory_gib": samples["memory_used_mib"].max() / 1024,
@@ -60,14 +77,24 @@ def collect_profiles(root):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("profiles", type=Path, nargs="?", default=Path("profiles"))
+    parser.add_argument("--family", choices=("repeat", "real"), default="repeat")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    output = args.output or args.profiles / "scaling.png"
+    output = args.output or args.profiles / f"scaling_{args.family}.png"
 
-    data, failures = collect_profiles(args.profiles)
+    data, failures = collect_profiles(args.profiles, args.family)
     if data.empty:
         raise SystemExit("no completed scaling profiles found")
-    data = data.groupby(["hardware", "tokens", "mode"], as_index=False).median(numeric_only=True)
+    raw = data.copy()
+    data = data.groupby(["hardware", "target", "mode"], as_index=False).agg(
+        tokens=("tokens", "median"),
+        runtime_s=("runtime_s", "median"),
+        runtime_min=("runtime_s", "min"),
+        runtime_max=("runtime_s", "max"),
+        peak_memory_gib=("peak_memory_gib", "median"),
+        memory_min=("peak_memory_gib", "min"),
+        memory_max=("peak_memory_gib", "max"),
+    )
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5), layout="constrained")
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -80,6 +107,16 @@ def main():
                          marker=marker, color=color, label=f"{hardware} ({mode})")
             axes[1].plot(subset["tokens"], subset["peak_memory_gib"], style,
                          marker=marker, color=color, label=f"{hardware} ({mode})")
+            if args.family == "real":
+                points = raw[(raw["hardware"] == hardware) & (raw["mode"] == mode)]
+                axes[0].scatter(points["tokens"], points["runtime_s"],
+                                color=color, alpha=0.3, s=18)
+                axes[1].scatter(points["tokens"], points["peak_memory_gib"],
+                                color=color, alpha=0.3, s=18)
+                axes[0].fill_between(subset["tokens"], subset["runtime_min"],
+                                     subset["runtime_max"], color=color, alpha=0.1)
+                axes[1].fill_between(subset["tokens"], subset["memory_min"],
+                                     subset["memory_max"], color=color, alpha=0.1)
         oom_tokens = [tokens for failed_hardware, tokens, mode, _, oom in failures
                       if failed_hardware == hardware and mode == "device" and oom]
         if oom_tokens:

@@ -25,7 +25,7 @@ ROOT="$SLURM_SUBMIT_DIR"
 INPUT_JSON="$ROOT/.runtime/scaling/inputs/scaling_${TOKEN_COUNT}.json"
 SIF="$ROOT/images/alphafold3-v3.0.4-x86_64.sif"
 MODEL=/data/dtce-oxrse/dtce0101/af_artefacts/model_param
-RUN_DIR="$ROOT/profiles/scaling-arc-a100-${TOKEN_COUNT}-${MEMORY_MODE}-$SLURM_JOB_ID"
+RUN_DIR="$ROOT/profiles/scaling-repeat-arc-a100-${TOKEN_COUNT}-${MEMORY_MODE}-$SLURM_JOB_ID"
 python3 "$ROOT/scripts/generate_scaling_input.py" "$TOKEN_COUNT" "$INPUT_JSON"
 
 COMMAND=(

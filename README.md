@@ -117,25 +117,56 @@ Each array task is an independent profiled inference run. Start with device-only
 memory and retain failures as the observed capacity boundary:
 
 ```bash
-bash bmrc/scaling/submit.sh device
-bash arc/scaling/submit.sh device
+bash bmrc/scaling_repeat/submit.sh device
+bash arc/scaling_repeat/submit.sh device
 ```
 
 Run a second, independent sweep with unified memory enabled at every size:
 
 ```bash
-bash bmrc/scaling/submit.sh unified
-bash arc/scaling/submit.sh unified
+bash bmrc/scaling_repeat/submit.sh unified
+bash arc/scaling_repeat/submit.sh unified
 ```
 
 Unified sweeps request 320 GB host memory; device-only sweeps retain their
 smaller requests. Generate aggregate runtime and peak-GPU-memory curves with:
 
 ```bash
-python3 scripts/plot_scaling.py profiles
+python3 scripts/plot_scaling.py profiles --family repeat
 ```
 
 Profile names contain `device` or `unified`, and metadata records the effective
 unified-memory setting. The plot draws a hardware-colored vertical dotted line
 at the first device-only OOM. Failed profiles are retained for diagnostics,
 excluded from scaling curves, and reported on stdout.
+
+## Natural-sequence scaling
+
+`inputs/scaling_real/manifest.tsv` contains three UniProt proteins near each
+target from 250 to 10,000 residues. Entries are reviewed except the explicitly
+marked third 10k candidate. Preparation fetches canonical FASTA sequences,
+checks exact lengths and residue alphabets, and writes generated inputs beneath
+`.runtime/scaling_real/inputs/`.
+
+Submit data pipelines plus device and unified inference arrays:
+
+```bash
+bash bmrc/scaling_real/submit.sh all
+bash arc/scaling_real/submit.sh all
+```
+
+Or submit once and add inference sweeps later:
+
+```bash
+bash bmrc/scaling_real/submit.sh pipeline
+bash bmrc/scaling_real/submit.sh device PIPELINE_ARRAY_ID
+bash bmrc/scaling_real/submit.sh unified PIPELINE_ARRAY_ID
+```
+
+Inference tasks use `aftercorr`, so each array index waits only for its matching
+pipeline index. Plot individual proteins, median trends, and min-max variability
+bands with:
+
+```bash
+python3 scripts/plot_scaling.py profiles --family real
+```

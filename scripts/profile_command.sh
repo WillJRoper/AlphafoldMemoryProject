@@ -7,16 +7,23 @@ usage() {
     exit 2
 }
 
-[[ $# -ge 9 && "$8" == -- ]] || usage
-
+[[ $# -ge 8 ]] || usage
 RUN_DIR=$1
 STAGE=$2
 INPUT_JSON=$3
 SIF=$4
 AF_VERSION=$5
 HAS_GPU=$6
-MEMORY_MODE=$7
-shift 8
+if [[ $# -ge 9 && "$8" == -- ]]; then
+    MEMORY_MODE=$7
+    shift 8
+elif [[ $# -ge 8 && "$7" == -- ]]; then
+    # Jobs already queued before memory-mode support are device-only profiles.
+    MEMORY_MODE=device
+    shift 7
+else
+    usage
+fi
 COMMAND=("$@")
 
 [[ "$HAS_GPU" == true || "$HAS_GPU" == false ]] || usage
