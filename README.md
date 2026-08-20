@@ -75,8 +75,10 @@ bash bmrc/submit_all.sh profiles/data-pipeline-JOB_ID/output/JOB/JOB_data.json
 ```
 
 The V100 script uses XLA flash attention because AF3's Triton/cuDNN paths
-require Ampere or newer. Unified memory and JAX preallocation are disabled in
-the profiler defaults for clean memory measurements.
+require Ampere or newer, disables Triton GEMM, and disables XLA's unsupported
+custom-kernel-fusion pass for Volta compute capability 7.x. Unified memory and
+JAX preallocation are disabled in the profiler defaults for clean memory
+measurements.
 
 
 ## ARC

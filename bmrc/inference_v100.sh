@@ -30,7 +30,9 @@ CONTAINER_RUN_DIR="/root/af_inout/profiles/v100-$SLURM_JOB_ID"
 }
 
 COMMAND=(
-    apptainer run --nv --env UV_CACHE_DIR=/uv-cache --bind "$VENV:/alphafold3_venv"
+    apptainer run --nv --env UV_CACHE_DIR=/uv-cache --env UV_LINK_MODE=copy
+    --env "XLA_FLAGS=--xla_disable_hlo_passes=custom-kernel-fusion-rewriter --xla_gpu_enable_triton_gemm=false"
+    --bind "$VENV:/alphafold3_venv"
     --bind "$UV_CACHE:/uv-cache" --bind "$ROOT:/root/af_inout"
     --bind "$MODEL:/root/models" "$SIF"
     --json_path="/root/af_inout/${INPUT_JSON#"$ROOT/"}"

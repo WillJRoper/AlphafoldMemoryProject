@@ -22,6 +22,6 @@ mkdir -p "$VENV" "$UV_CACHE"
 
 apptainer exec --bind "$VENV:/alphafold3_venv" --bind "$UV_CACHE:/uv-cache" "$SIF" \
     env UV_PROJECT_ENVIRONMENT=/alphafold3_venv UV_CACHE_DIR=/uv-cache UV_LINK_MODE=copy \
-    /bin/uv sync --project /app/alphafold --frozen --all-groups --no-editable
+    /bin/uv sync --project /app/alphafold --frozen --all-groups
 apptainer exec --bind "$VENV:/alphafold3_venv" "$SIF" \
     /alphafold3_venv/bin/python3 -c 'from absl import app; import alphafold3; print(alphafold3.__file__)'
