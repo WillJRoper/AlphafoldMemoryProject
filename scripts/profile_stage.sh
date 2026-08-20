@@ -91,14 +91,26 @@ else
     fi
 fi
 
-if [[ "$AF3_STAGE" == data-pipeline ]]; then
-    COMMAND=(apptainer run "${BIND_ARGS[@]}" "$AF3_SIF"
-             "${COMMAND_ARGS[@]}" --run_data_pipeline=true --run_inference=false "$@")
-else
+NV_ARGS=()
+if [[ "$AF3_STAGE" != data-pipeline ]]; then
+    NV_ARGS=(--nv)
     AF3_JAX_CACHE_DIR="${AF3_JAX_CACHE_DIR:-$HOME/.cache}"
     mkdir -p "$AF3_JAX_CACHE_DIR"
-    COMMAND=(apptainer run --nv "${BIND_ARGS[@]}" "$AF3_SIF"
-             "${COMMAND_ARGS[@]}" --jax_compilation_cache_dir="$AF3_JAX_CACHE_DIR"
+fi
+
+if [[ "$AF3_SITE" == bmrc ]]; then
+    RUNNER=(apptainer exec "${NV_ARGS[@]}" "${BIND_ARGS[@]}" "$AF3_SIF"
+            /alphafold3_venv/bin/python3 /app/alphafold/run_alphafold.py)
+else
+    RUNNER=(apptainer run "${NV_ARGS[@]}" "${BIND_ARGS[@]}" "$AF3_SIF")
+fi
+
+if [[ "$AF3_STAGE" == data-pipeline ]]; then
+    COMMAND=("${RUNNER[@]}" "${COMMAND_ARGS[@]}"
+             --run_data_pipeline=true --run_inference=false "$@")
+else
+    COMMAND=("${RUNNER[@]}" "${COMMAND_ARGS[@]}"
+             --jax_compilation_cache_dir="$AF3_JAX_CACHE_DIR"
              --run_data_pipeline=false --run_inference=true "$@")
 fi
 
