@@ -11,7 +11,6 @@ bmrc/data_pipeline.sh       BMRC data pipeline
 bmrc/setup_x86_environment.sh  One-time x86 environment setup
 bmrc/setup_arm_environment.sh  One-time ARM environment setup
 bmrc/inference_a100.sh      BMRC A100 inference
-bmrc/inference_v100.sh      BMRC V100 inference
 bmrc/inference_gh200.sh     BMRC GH200 inference
 bmrc/submit_all.sh          Submit all inference variants
 bmrc/submit_comparison.sh   Submit pipeline plus dependent inference jobs
@@ -56,7 +55,7 @@ Submit one complete comparison:
 bash bmrc/submit_comparison.sh inputs/lysozyme_1lyz.json
 ```
 
-This submits the data pipeline, then A100, V100, and GH200 inference jobs with
+This submits the data pipeline, then A100 and GH200 inference jobs with
 `afterok` dependencies. The generated pipeline JSON has a deterministic path
 under `profiles/data-pipeline-JOB_ID/`.
 
@@ -74,11 +73,8 @@ For an already completed pipeline:
 bash bmrc/submit_all.sh profiles/data-pipeline-JOB_ID/output/JOB/JOB_data.json
 ```
 
-The V100 script uses XLA flash attention because AF3's Triton/cuDNN paths
-require Ampere or newer, disables Triton GEMM, and disables XLA's unsupported
-custom-kernel-fusion pass for Volta compute capability 7.x. Unified memory and
-JAX preallocation are disabled in the profiler defaults for clean memory
-measurements.
+Unified memory and JAX preallocation are disabled in the profiler defaults for
+clean memory measurements.
 
 
 ## ARC
