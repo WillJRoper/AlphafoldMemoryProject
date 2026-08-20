@@ -7,6 +7,7 @@
 #SBATCH --output=logs/af3-scale-gh200-%A_%a.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
+#SBATCH --nodelist=compgh023
 #SBATCH --gres=gpu:gh200:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
