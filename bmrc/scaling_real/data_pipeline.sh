@@ -8,8 +8,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=128G
 #SBATCH --time=24:00:00
 #SBATCH --array=0-26%2
 
@@ -38,10 +38,14 @@ COMMAND=(
     --json_path="/root/af_inout/${INPUT_JSON#"$ROOT/"}"
     --output_dir="$CONTAINER_RUN_DIR/output"
     --db_dir=/root/public_databases
+    --jackhmmer_n_cpu=8
+    --nhmmer_n_cpu=8
+    --hmmsearch_n_cpu=8
     --run_data_pipeline=true
     --run_inference=false
 )
 
-printf 'Target=%s accession=%s residues=%s\n' "$TARGET" "$ACCESSION" "$LENGTH"
+printf 'Target=%s accession=%s residues=%s cpus=%s\n' \
+    "$TARGET" "$ACCESSION" "$LENGTH" "$SLURM_CPUS_PER_TASK"
 exec "$ROOT/scripts/profile_command.sh" "$RUN_DIR" data-pipeline "$INPUT_JSON" \
     "$SIF" 3.0.3 false device -- "${COMMAND[@]}"
