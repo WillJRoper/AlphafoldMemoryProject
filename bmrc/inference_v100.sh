@@ -10,6 +10,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint=v100
 #SBATCH --cpus-per-task=16
+#SBATCH --mem=64G
 #SBATCH --time=04:00:00
 
 module load Python/3.11.3-GCCcore-12.3.0
