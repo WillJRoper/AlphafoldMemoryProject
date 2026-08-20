@@ -95,6 +95,27 @@ bash bmrc/inference/submit_all.sh \
   profiles/DATA_RUN/output/lysozyme_1lyz/lysozyme_1lyz_data.json
 ```
 
+To submit the pipeline and all dependent inference jobs in one command:
+
+```bash
+bash bmrc/submit_comparison.sh inputs/lysozyme_1lyz.json
+```
+
+For a pipeline job that is already queued or running, attach inference jobs by
+job ID. Each inference job waits for successful pipeline completion and resolves
+its generated `*_data.json` when it starts:
+
+```bash
+bash bmrc/inference/submit_all.sh --after PIPELINE_JOB_ID
+```
+
+An explicit expected data-JSON path can also be supplied with the dependency:
+
+```bash
+bash bmrc/inference/submit_all.sh --after PIPELINE_JOB_ID \
+  profiles/PIPELINE_RUN/output/JOB/JOB_data.json
+```
+
 `submit_all.sh` submits A100 80GB, V100 16GB, and GH200 jobs. V100 uses XLA
 flash attention because AF3's Triton/cuDNN flash-attention paths require Ampere
 or newer. Inference binds model parameters only; data pipeline binds databases

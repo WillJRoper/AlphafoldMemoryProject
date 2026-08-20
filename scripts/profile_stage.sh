@@ -20,8 +20,23 @@ PROFILE_MODE="${PROFILE_MODE:-memory_characterisation}"
 SAMPLING_INTERVAL_MS="${SAMPLING_INTERVAL_MS:-100}"
 PROFILES_DIR="${PROFILES_DIR:-$PROJECT_ROOT/profiles}"
 
-INPUT_JSON="$(realpath "$1")"
+INPUT_SPEC=$1
 shift
+
+if [[ "$INPUT_SPEC" == pipeline-job:* ]]; then
+    PIPELINE_JOB_ID=${INPUT_SPEC#pipeline-job:}
+    [[ "$PIPELINE_JOB_ID" =~ ^[0-9]+$ ]] || error "invalid pipeline job ID: $PIPELINE_JOB_ID"
+    shopt -s nullglob
+    PIPELINE_OUTPUTS=(
+        "$PROJECT_ROOT"/profiles/*-"$PIPELINE_JOB_ID"/output/*/*_data.json
+    )
+    shopt -u nullglob
+    ((${#PIPELINE_OUTPUTS[@]} == 1)) || \
+        error "expected one *_data.json for pipeline job $PIPELINE_JOB_ID, found ${#PIPELINE_OUTPUTS[@]}"
+    INPUT_JSON="$(realpath "${PIPELINE_OUTPUTS[0]}")"
+else
+    INPUT_JSON="$(realpath "$INPUT_SPEC")"
+fi
 
 case "$PROFILE_MODE" in
 baseline)
