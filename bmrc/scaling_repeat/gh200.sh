@@ -13,7 +13,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --array=0-12%2
 
-module load Python/3.11.3-GCCcore-12.3.0
+module purge 2>/dev/null || true
 set -euo pipefail
 
 TOKENS=(128 256 512 768 1024 1536 2048 2560 3072 4096 5120 6144 7000)

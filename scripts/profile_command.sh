@@ -55,7 +55,7 @@ else
     : >"$RUN_DIR/gpu_inventory.csv"
 fi
 
-python3 "$PROJECT_ROOT/scripts/profile_metadata.py" create \
+/usr/bin/python3 "$PROJECT_ROOT/scripts/profile_metadata.py" create \
     --output "$RUN_DIR/metadata.json" --input "$INPUT_JSON" --sif "$SIF" \
     --mode "$PROFILE_MODE" --stage "$STAGE" --interval "$SAMPLING_INTERVAL_MS" \
     --gpu-inventory "$RUN_DIR/gpu_inventory.csv" \
@@ -93,7 +93,7 @@ set -e
 
 cleanup
 trap - EXIT
-python3 "$PROJECT_ROOT/scripts/profile_metadata.py" finish \
+/usr/bin/python3 "$PROJECT_ROOT/scripts/profile_metadata.py" finish \
     --metadata "$RUN_DIR/metadata.json" --time-file "$RUN_DIR/time.txt" \
     --exit-status "$EXIT_STATUS"
 

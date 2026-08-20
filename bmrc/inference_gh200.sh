@@ -12,7 +12,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
 
-module load Python/3.11.3-GCCcore-12.3.0
+module purge 2>/dev/null || true
 set -euo pipefail
 
 ROOT="$SLURM_SUBMIT_DIR"

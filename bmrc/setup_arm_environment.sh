@@ -12,6 +12,7 @@
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
 
+module purge 2>/dev/null || true
 set -euo pipefail
 
 SIF=/apps/singularity/alphafold3/alphafold-3.0.3-arm.sif

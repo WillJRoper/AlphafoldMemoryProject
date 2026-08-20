@@ -13,7 +13,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --array=0-26%2
 
-module load Python/3.11.3-GCCcore-12.3.0
+module purge 2>/dev/null || true
 set -euo pipefail
 
 [[ $# -eq 2 ]] || { printf 'usage: %s PIPELINE_ARRAY_ID device|unified\n' "$0" >&2; exit 2; }

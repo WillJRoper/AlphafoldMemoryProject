@@ -121,7 +121,7 @@ def finish(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    commands = parser.add_subparsers(dest="action", required=True)
+    commands = parser.add_subparsers(dest="action")
 
     start = commands.add_parser("create")
     for name in ("output", "input", "sif", "mode", "stage", "gpu-inventory", "af-version", "af-commit"):
@@ -135,6 +135,8 @@ def main():
     end.add_argument("--exit-status", type=int, required=True)
 
     args = parser.parse_args()
+    if args.action is None:
+        parser.error("a command is required")
     create(args) if args.action == "create" else finish(args)
 
 
