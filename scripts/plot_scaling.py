@@ -21,6 +21,11 @@ def inference_seconds(log, fallback):
     return float(match.group(1)) if match else float(fallback)
 
 
+def inference_bucket(log):
+    match = re.search(r"Got bucket size (\d+) for input with \d+ tokens", log)
+    return int(match.group(1)) if match else None
+
+
 def collect_profiles(root, family="repeat"):
     records = []
     failures = []
@@ -84,6 +89,7 @@ def collect_profiles(root, family="repeat"):
             "mode": mode,
             "runtime_s": inference_seconds(log, metadata["wall_clock_seconds"]),
             "peak_memory_gib": samples["memory_used_mib"].max() / 1024,
+            "bucket": inference_bucket(log),
         })
     return pd.DataFrame(records), failures, incomplete
 
@@ -109,9 +115,13 @@ def main():
         peak_memory_gib=("peak_memory_gib", "median"),
         memory_min=("peak_memory_gib", "min"),
         memory_max=("peak_memory_gib", "max"),
+        bucket=("bucket", "median"),
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5), layout="constrained")
+    fig = plt.figure(figsize=(13, 5.5), layout="constrained")
+    grid = fig.add_gridspec(2, 2, height_ratios=(0.14, 1))
+    axes = [fig.add_subplot(grid[:, 0]), fig.add_subplot(grid[1, 1])]
+    bucket_ax = fig.add_subplot(grid[0, 1], sharex=axes[1])
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     hardware_handles = []
     for color, (hardware, group) in zip(colors, data.groupby("hardware")):
@@ -159,13 +169,66 @@ def main():
     axes[1].set_title("AF3 peak GPU-memory scaling")
     axes[1].set_ylabel("Peak GPU memory (GiB)")
     for ax in axes:
+        ax.set_xscale("log", base=2)
+        ax.set_yscale("log")
         ax.set_xlabel("Protein tokens")
-        ax.grid(alpha=0.3)
+        ax.grid(alpha=0.3, which="both")
         hardware_legend = ax.legend(handles=hardware_handles, title="Hardware",
                                     fontsize=8, title_fontsize=8, loc="upper left")
         ax.add_artist(hardware_legend)
         ax.legend(handles=trait_handles, title="Profile",
                   fontsize=8, title_fontsize=8, loc="upper right")
+
+    bucket_rows = data.dropna(subset=["bucket"]).groupby(
+        ["hardware", "target"], as_index=False
+    ).agg(tokens=("tokens", "median"), bucket=("bucket", "median"))
+    if bucket_rows.empty:
+        bucket_ax.axis("off")
+    else:
+        buckets = sorted(int(value) for value in bucket_rows["bucket"].unique())
+        bucket_colors = {
+            bucket: plt.get_cmap("tab20")(index % 20)
+            for index, bucket in enumerate(buckets)
+        }
+        hardware_rows = list(bucket_rows.groupby("hardware"))
+        for row_index, (hardware, points) in enumerate(hardware_rows):
+            points = points.sort_values("tokens")
+            tokens = points["tokens"].to_list()
+            if len(tokens) == 1:
+                edges = [tokens[0] / 1.2, tokens[0] * 1.2]
+            else:
+                middles = [(left * right) ** 0.5 for left, right in zip(tokens, tokens[1:])]
+                edges = [tokens[0] ** 2 / middles[0], *middles,
+                         tokens[-1] ** 2 / middles[-1]]
+            for index, bucket_value in enumerate(points["bucket"]):
+                bucket = int(bucket_value)
+                bucket_ax.fill_between(
+                    [edges[index], edges[index + 1]],
+                    row_index,
+                    row_index + 1,
+                    color=bucket_colors[bucket],
+                    edgecolor="white",
+                    linewidth=0.4,
+                )
+                bucket_ax.text(
+                    (edges[index] * edges[index + 1]) ** 0.5,
+                    row_index + 0.5,
+                    str(bucket),
+                    ha="center",
+                    va="center",
+                    fontsize=5,
+                    rotation=90,
+                )
+        bucket_ax.set_yticks(
+            [index + 0.5 for index in range(len(hardware_rows))],
+            labels=[hardware for hardware, _ in hardware_rows],
+            fontsize=6,
+        )
+        bucket_ax.set_ylim(0, len(hardware_rows))
+        bucket_ax.set_title("Observed AF3 compilation bucket (tokens)", fontsize=8)
+        bucket_ax.tick_params(axis="x", labelbottom=False, length=0)
+        bucket_ax.tick_params(axis="y", length=0)
+        bucket_ax.grid(False)
     fig.savefig(output, dpi=180)
     plt.close(fig)
 

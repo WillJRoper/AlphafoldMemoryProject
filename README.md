@@ -135,6 +135,14 @@ bash bmrc/scaling_repeat/submit.sh unified
 bash arc/scaling_repeat/submit.sh unified
 ```
 
+BMRC also supports the official preallocated device configuration, or all three
+allocator modes in one submission:
+
+```bash
+bash bmrc/scaling_repeat/submit.sh preallocated
+bash bmrc/scaling_repeat/submit.sh all
+```
+
 Restrict a BMRC repeat sweep to hardware not already completed:
 
 ```bash
@@ -149,10 +157,12 @@ smaller requests. Generate aggregate runtime and peak-GPU-memory curves with:
 python3 scripts/plot_scaling.py profiles --family repeat
 ```
 
-Profile names contain `device` or `unified`, and metadata records the effective
-unified-memory setting. The plot draws a hardware-colored vertical dotted line
-at the first device-only OOM. Failed profiles are retained for diagnostics,
-excluded from scaling curves, and reported on stdout.
+Profile names identify on-demand device, preallocated device, or unified mode,
+and metadata records effective allocator settings. Runtime and memory panels use
+log-log axes. A thin strip above memory shows observed AF3 compilation buckets.
+The plot draws a hardware-colored vertical dotted line at the first on-demand
+device OOM. Failed profiles are retained for diagnostics, excluded from scaling
+curves, and reported on stdout.
 
 ## Natural-sequence scaling
 
@@ -162,7 +172,7 @@ marked third 10k candidate. Preparation fetches canonical FASTA sequences,
 checks exact lengths and residue alphabets, and writes generated inputs beneath
 `.runtime/scaling_real/inputs/`.
 
-Submit data pipelines plus device and unified inference arrays:
+Submit data pipelines plus all three inference allocator modes:
 
 ```bash
 bash bmrc/scaling_real/submit.sh all
@@ -175,6 +185,7 @@ Or submit once and add inference sweeps later:
 bash bmrc/scaling_real/submit.sh pipeline
 bash bmrc/scaling_real/submit.sh device PIPELINE_ARRAY_ID
 bash bmrc/scaling_real/submit.sh unified PIPELINE_ARRAY_ID
+bash bmrc/scaling_real/submit.sh preallocated PIPELINE_ARRAY_ID
 ```
 
 Append `a100` or `gh200` to submit only that hardware, for example:
@@ -189,4 +200,23 @@ bands with:
 
 ```bash
 python3 scripts/plot_scaling.py profiles --family real
+```
+
+## Data-pipeline scaling
+
+Plot fixed-32-CPU runtime and host-memory scaling from completed natural-suite
+pipeline profiles:
+
+```bash
+python3 scripts/plot_pipeline_scaling.py profiles --kind length
+```
+
+The BMRC strong-scaling suite runs `P60174`, `A2AJK6`, and `Q8I3Z1` three times
+at 4, 8, 16, 24, 32, and 48 allocated CPUs. Four concurrent Jackhmmer searches
+receive 1, 2, 4, 6, 8, and 12 threads respectively. Arrays are serialized to
+limit benchmark-induced GPFS contention:
+
+```bash
+bash bmrc/scaling_pipeline/submit.sh
+python3 scripts/plot_pipeline_scaling.py profiles --kind threads
 ```
