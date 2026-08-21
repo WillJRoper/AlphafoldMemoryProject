@@ -18,7 +18,7 @@ set -euo pipefail
 
 TOKENS=(128 256 512 768 1024 1536 2048 2560 3072 4096 5120 6144 7000)
 MEMORY_MODE=${1:-device}
-[[ "$MEMORY_MODE" == device || "$MEMORY_MODE" == unified ]] || exit 2
+[[ "$MEMORY_MODE" == device || "$MEMORY_MODE" == preallocated || "$MEMORY_MODE" == unified ]] || exit 2
 TOKEN_COUNT=${TOKENS[$SLURM_ARRAY_TASK_ID]}
 
 ROOT="$SLURM_SUBMIT_DIR"

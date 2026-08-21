@@ -6,8 +6,8 @@ TOKENS=(128 256 512 768 1024 1536 2048 2560 3072 4096 5120 6144 7000)
 MODE=${1:-device}
 FROM=0
 HARDWARE=all
-[[ "$MODE" == all || "$MODE" == device || "$MODE" == unified ]] || {
-    printf 'usage: %s all|device|unified [FROM_TOKENS] [all|a100|gh200]\n' "$0" >&2
+[[ "$MODE" == all || "$MODE" == device || "$MODE" == preallocated || "$MODE" == unified ]] || {
+    printf 'usage: %s all|device|preallocated|unified [FROM_TOKENS] [all|a100|gh200]\n' "$0" >&2
     exit 2
 }
 (( $# )) && shift
@@ -33,7 +33,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 HARDWARES=(a100 gh200)
 [[ "$HARDWARE" != all ]] && HARDWARES=("$HARDWARE")
 MODES=("$MODE")
-[[ "$MODE" == all ]] && MODES=(device unified)
+[[ "$MODE" == all ]] && MODES=(device preallocated unified)
 for memory_mode in "${MODES[@]}"; do
     for hardware in "${HARDWARES[@]}"; do
         SBATCH_ARGS=(--chdir="$ROOT" --array="$ARRAY%2")

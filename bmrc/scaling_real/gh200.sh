@@ -17,10 +17,10 @@
 module purge 2>/dev/null || true
 set -euo pipefail
 
-[[ $# -eq 2 ]] || { printf 'usage: %s PIPELINE_ARRAY_ID device|unified\n' "$0" >&2; exit 2; }
+[[ $# -eq 2 ]] || { printf 'usage: %s PIPELINE_ARRAY_ID device|preallocated|unified\n' "$0" >&2; exit 2; }
 PIPELINE_ARRAY_ID=$1
 MEMORY_MODE=$2
-[[ "$MEMORY_MODE" == device || "$MEMORY_MODE" == unified ]] || exit 2
+[[ "$MEMORY_MODE" == device || "$MEMORY_MODE" == preallocated || "$MEMORY_MODE" == unified ]] || exit 2
 
 ROOT="$SLURM_SUBMIT_DIR"
 MANIFEST="$ROOT/inputs/scaling_real/manifest.tsv"

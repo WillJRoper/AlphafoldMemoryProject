@@ -10,6 +10,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import pandas as pd
 
 
@@ -27,11 +28,11 @@ def collect_profiles(root, family="repeat"):
     latest = {}
     if family == "real":
         pattern = re.compile(
-            r"scaling-real-(bmrc|arc)-(a100|gh200)-(\d+)-([A-Z0-9]+)-(device|unified)-"
+            r"scaling-real-(bmrc|arc)-(a100|gh200)-(\d+)-([A-Z0-9]+)-(device|preallocated|unified)-"
         )
     else:
         pattern = re.compile(
-            r"scaling-(?:repeat-)?(bmrc|arc)-(a100|gh200)-(\d+)-(device|unified)-"
+            r"scaling-(?:repeat-)?(bmrc|arc)-(a100|gh200)-(\d+)-(device|preallocated|unified)-"
         )
     for metadata_path in root.glob("*/metadata.json"):
         metadata = json.loads(metadata_path.read_text())
@@ -112,21 +113,27 @@ def main():
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5), layout="constrained")
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    hardware_handles = []
     for color, (hardware, group) in zip(colors, data.groupby("hardware")):
-        for mode, style, marker in (("device", "-", "o"), ("unified", "--", "s")):
+        hardware_handles.append(Line2D([0], [0], color=color, lw=3, label=hardware))
+        for mode, style, marker in (
+            ("device", "-", "o"),
+            ("preallocated", "-.", "^"),
+            ("unified", "--", "s"),
+        ):
             subset = group[group["mode"] == mode].sort_values("tokens")
             if subset.empty:
                 continue
             axes[0].plot(subset["tokens"], subset["runtime_s"], style,
-                         marker=marker, color=color, label=f"{hardware} ({mode})")
+                         marker=marker, color=color, label="_nolegend_")
             axes[1].plot(subset["tokens"], subset["peak_memory_gib"], style,
-                         marker=marker, color=color, label=f"{hardware} ({mode})")
+                         marker=marker, color=color, label="_nolegend_")
             if args.family == "real":
                 points = raw[(raw["hardware"] == hardware) & (raw["mode"] == mode)]
                 axes[0].scatter(points["tokens"], points["runtime_s"],
-                                color=color, alpha=0.3, s=18)
+                                color=color, marker=marker, alpha=0.3, s=18)
                 axes[1].scatter(points["tokens"], points["peak_memory_gib"],
-                                color=color, alpha=0.3, s=18)
+                                color=color, marker=marker, alpha=0.3, s=18)
                 axes[0].fill_between(subset["tokens"], subset["runtime_min"],
                                      subset["runtime_max"], color=color, alpha=0.1)
                 axes[1].fill_between(subset["tokens"], subset["memory_min"],
@@ -137,8 +144,15 @@ def main():
             threshold = min(oom_tokens)
             for ax in axes:
                 ax.axvline(threshold, color=color, ls=":", alpha=0.8)
-            axes[0].text(threshold, axes[0].get_ylim()[1], f" {hardware} device OOM",
-                         color=color, rotation=90, va="top", fontsize=8)
+
+    trait_handles = [
+        Line2D([0], [0], color="black", ls="-", marker="o", label="On-demand device"),
+        Line2D([0], [0], color="black", ls="-.", marker="^", label="Preallocated device"),
+        Line2D([0], [0], color="black", ls="--", marker="s", label="Unified memory"),
+    ]
+    if any(mode == "device" and oom for _, _, mode, _, oom in failures):
+        trait_handles.append(Line2D([0], [0], color="black", ls=":",
+                                    label="First on-demand OOM"))
 
     axes[0].set_title("AF3 inference runtime scaling")
     axes[0].set_ylabel("Inference runtime (s)")
@@ -147,7 +161,11 @@ def main():
     for ax in axes:
         ax.set_xlabel("Protein tokens")
         ax.grid(alpha=0.3)
-        ax.legend(fontsize=8)
+        hardware_legend = ax.legend(handles=hardware_handles, title="Hardware",
+                                    fontsize=8, title_fontsize=8, loc="upper left")
+        ax.add_artist(hardware_legend)
+        ax.legend(handles=trait_handles, title="Profile",
+                  fontsize=8, title_fontsize=8, loc="upper right")
     fig.savefig(output, dpi=180)
     plt.close(fig)
 

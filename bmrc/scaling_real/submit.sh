@@ -5,8 +5,8 @@ set -euo pipefail
 MODE=${1:-all}
 PIPELINE_ID=""
 HARDWARE=all
-[[ "$MODE" == all || "$MODE" == pipeline || "$MODE" == device || "$MODE" == unified ]] || {
-    printf 'usage: %s all|pipeline|device|unified [PIPELINE_ARRAY_ID] [all|a100|gh200]\n' "$0" >&2
+[[ "$MODE" == all || "$MODE" == pipeline || "$MODE" == device || "$MODE" == preallocated || "$MODE" == unified ]] || {
+    printf 'usage: %s all|pipeline|device|preallocated|unified [PIPELINE_ARRAY_ID] [all|a100|gh200]\n' "$0" >&2
     exit 2
 }
 (( $# )) && shift
@@ -37,7 +37,7 @@ fi
 [[ "$PIPELINE_ID" =~ ^[0-9]+$ ]] || { printf 'error: pipeline array ID required\n' >&2; exit 2; }
 
 MODES=("$MODE")
-[[ "$MODE" == all ]] && MODES=(device unified)
+[[ "$MODE" == all ]] && MODES=(device preallocated unified)
 for memory_mode in "${MODES[@]}"; do
     SBATCH_ARGS=(--chdir="$ROOT" --array="$ARRAY" --dependency="aftercorr:$PIPELINE_ID")
     [[ "$memory_mode" == unified ]] && SBATCH_ARGS+=(--mem=320G)

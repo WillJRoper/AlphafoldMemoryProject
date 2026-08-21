@@ -77,8 +77,9 @@ For an already completed pipeline:
 bash bmrc/submit_all.sh profiles/data-pipeline-JOB_ID/output/JOB/JOB_data.json
 ```
 
-Unified memory and JAX preallocation are disabled in the profiler defaults for
-clean memory measurements.
+Scaling profiles support on-demand device allocation for clean memory
+measurements, official preallocated device mode for capacity tests, and unified
+memory with host spill.
 
 
 ## ARC
