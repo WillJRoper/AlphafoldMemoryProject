@@ -38,9 +38,6 @@ COMMAND=(
     --json_path="/root/af_inout/${INPUT_JSON#"$ROOT/"}"
     --output_dir="$CONTAINER_RUN_DIR/output"
     --db_dir=/root/public_databases
-    --jackhmmer_n_cpu=8
-    --nhmmer_n_cpu=8
-    --hmmsearch_n_cpu=8
     --run_data_pipeline=true
     --run_inference=false
 )
